@@ -2,7 +2,7 @@
 
 A coding-agent plugin that helps you build data products with [dbt](https://www.getdbt.com/) and integrate them with [Entropy Data](https://entropy-data.com).
 
-## Status
+## Skills
 
 The plugin ships eight skills and one subagent:
 
