@@ -1,0 +1,20 @@
+{
+  "name": "entropy-data",
+  "interface": {
+    "displayName": "Entropy Data Plugins",
+    "shortDescription": "Coding-agent plugins from Entropy Data."
+  },
+  "plugins": [
+    {
+      "name": "dataproduct-builder-dbt",
+      "source": {
+        "source": "local",
+        "path": "../../"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Data"
+    }
+  ]
+}

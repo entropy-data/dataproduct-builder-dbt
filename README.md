@@ -43,36 +43,12 @@ Copilot CLI reads `skills/<name>/SKILL.md` and the `.mcp.json` shipped with this
 
 ### Codex CLI
 
-Codex CLI's plugin install is marketplace-based; this repo does not yet ship a `marketplace.json`, so install manually:
+```
+codex plugin marketplace add entropy-data/dataproduct-builder-dbt
+codex plugin install dataproduct-builder-dbt
+```
 
-1. Clone the plugin to a stable location:
-
-   ```
-   git clone https://github.com/entropy-data/dataproduct-builder-dbt.git ~/.codex/plugins/dataproduct-builder-dbt
-   ```
-
-2. Register the MCP server in `~/.codex/config.toml`:
-
-   ```toml
-   [mcp_servers.entropy-data]
-   type = "http"
-   url = "https://app.entropy-data.com/mcp"
-   ```
-
-3. Make the skills discoverable by Codex. User-scoped (available in every project):
-
-   ```
-   ln -s ~/.codex/plugins/dataproduct-builder-dbt/skills/* ~/.codex/skills/
-   ```
-
-   Or repo-scoped (available only in this dbt project), from your dbt project root:
-
-   ```
-   mkdir -p .agents/skills
-   ln -s ~/.codex/plugins/dataproduct-builder-dbt/skills/* .agents/skills/
-   ```
-
-The plugin manifest at [`AGENTS.md`](AGENTS.md) is the routing table — once Codex picks up the skills, it follows that file to choose the right one. A native `codex marketplace add entropy-data/dataproduct-builder-dbt` flow will land once a `marketplace.json` is published.
+Codex reads the marketplace catalog at [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) and the per-plugin manifest at [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json), wiring up skills, the Entropy Data MCP server, and the ODCS-lint hook automatically. Verify with `codex plugin list`. The plugin manifest at [`AGENTS.md`](AGENTS.md) is the routing table the agent uses to pick the right skill.
 
 ### Other agents (Cursor, Aider, etc.)
 
