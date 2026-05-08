@@ -4,7 +4,7 @@ A coding-agent plugin that helps you build data products with [dbt](https://www.
 
 ## Status
 
-Early access. The plugin ships eight skills and one subagent:
+The plugin ships eight skills and one subagent:
 
 - **dataproduct-design** — designs a new data product *before* scaffolding: captures the business question, discovers candidate input ports via Entropy Data, decides grain and refresh cadence, drafts the output-port data contract, and picks the owning team. Produces a draft `<id>.odps.yaml` and `datacontracts/<contract>.odcs.yaml`, then hands off to bootstrap (greenfield) or sync (existing dbt project).
 - **dataproduct-bootstrap** — scaffolds a brand-new dbt data product from scratch (greenfield): `dbt_project.yml`, model layout, README with `uv` install instructions, `profiles.yml.example` for the chosen warehouse, then hands off to the sync skill.
@@ -103,9 +103,10 @@ Common extension points:
 - **Hooks** — extend [`hooks/hooks.json`](hooks/hooks.json) with additional `PostToolUse` validators (e.g. an internal lint on `models/**/*.sql`, or a check that team names match your IdP).
 - **Subagents** — add Claude Code subagents under `agents/` for read-only specialist roles (e.g. a PII scanner tuned to your classification taxonomy, a contract-review specialist for your terms-of-use boilerplate).
 
-After customizing, rename the plugin in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json), then publish under your own GitHub organization. Internal users install with `/plugin install <your-org>/<your-fork>` (Claude Code), `/plugin install github.com/<your-org>/<your-fork>` (Copilot CLI), or `codex plugin marketplace add <your-org>/<your-fork>` (Codex).
+After customizing, rename the plugin in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json), then publish under your own GitHub organization or GitLab repository. 
+Internal users install with `/plugin install <your-org>/<your-fork>` (Claude Code), `/plugin install github.com/<your-org>/<your-fork>` (Copilot CLI), or `codex plugin marketplace add <your-org>/<your-fork>` (Codex).
 
-If a change you've made is broadly useful, [open an issue or PR upstream](https://github.com/entropy-data/dataproduct-builder-dbt/issues) — generic improvements are very welcome.
+If a change you've made is broadly useful, [open an issue or PR upstream](https://github.com/entropy-data/dataproduct-builder-dbt/issues), generic improvements are very welcome.
 
 ## License
 
