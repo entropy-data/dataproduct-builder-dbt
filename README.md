@@ -90,6 +90,23 @@ Plugin defaults live in [`settings.json`](settings.json) at the plugin root:
 | `apiHost` | `https://api.entropy-data.com` | Base URL of the Entropy Data REST API. Substituted into `openlineage.yml` and the GitHub Actions workflow when a skill scaffolds a project. |
 | `mcpUrl` | `https://app.entropy-data.com/mcp` | URL of the Entropy Data MCP server. Used by skills that reference the MCP; the plugin manifest must be edited separately to actually rewire the server. |
 
+## Customization
+
+This plugin is a starting point, not a finished product. Organizations with their own data-product stack, naming conventions, or self-hosted Entropy Data deployment are encouraged to **fork or copy this repository** and adapt it to their environment.
+
+Common extension points:
+
+- **[`settings.json`](settings.json)** — point `apiHost`, `mcpUrl`, and `webUrl` at your self-hosted Entropy Data deployment.
+- **[`.mcp.json`](.mcp.json)** — change the MCP server URL or add additional MCP servers your team relies on.
+- **Templates** under [`skills/dataproduct-bootstrap/templates/`](skills/dataproduct-bootstrap/templates/) and [`skills/entropy-data-sync/templates/`](skills/entropy-data-sync/templates/) — these ship the ODPS, ODCS, OpenLineage transport, GitHub Actions workflow, and dbt project skeleton that the bootstrap and sync skills install. Replace any of them to match your conventions (e.g. swap GitHub Actions for GitLab CI, change the model layer naming, embed company-specific tags).
+- **Skills** — add your own `skills/<name>/SKILL.md` for organization-specific flows: internal data-quality checks, governance approvals, downstream sync to your data catalog, etc. Update `AGENTS.md` and `.github/copilot-instructions.md` so the routing tables surface them.
+- **Hooks** — extend [`hooks/hooks.json`](hooks/hooks.json) with additional `PostToolUse` validators (e.g. an internal lint on `models/**/*.sql`, or a check that team names match your IdP).
+- **Subagents** — add Claude Code subagents under `agents/` for read-only specialist roles (e.g. a PII scanner tuned to your classification taxonomy, a contract-review specialist for your terms-of-use boilerplate).
+
+After customizing, rename the plugin in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json), then publish under your own GitHub organization. Internal users install with `/plugin install <your-org>/<your-fork>` (Claude Code), `/plugin install github.com/<your-org>/<your-fork>` (Copilot CLI), or `codex plugin marketplace add <your-org>/<your-fork>` (Codex).
+
+If a change you've made is broadly useful, [open an issue or PR upstream](https://github.com/entropy-data/dataproduct-builder-dbt/issues) — generic improvements are very welcome.
+
 ## License
 
 MIT
