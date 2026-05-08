@@ -21,8 +21,6 @@ When a user request matches a skill's trigger, **read the corresponding `SKILL.m
 
 The trigger phrasing above is illustrative; each `SKILL.md`'s frontmatter `description` is authoritative. Skills can also call other skills — e.g. `dataproduct-design` hands off to `dataproduct-bootstrap`, which hands off to `entropy-data-sync`; every platform-touching skill calls `entropy-data-connect` as its Step 0.
 
-The plugin also ships a Claude-specific subagent at `agents/pii-scanner.md` for sample-data scrub-plan analysis. Copilot CLI doesn't use that subagent — `dataproduct-exampledata-upload` Step 2 has an inline-scrubbing fallback that runs in this CLI.
-
 ## Resolving `${PLUGIN_ROOT}`
 
 The skill files reference `${PLUGIN_ROOT}` to locate `settings.json` and `templates/`. On Claude Code this is set automatically as `${CLAUDE_PLUGIN_ROOT}`; on Copilot CLI it is **not** set — resolve it as the cloned repo root (the directory that contains `settings.json`, `.mcp.json`, and `skills/`; i.e. the parent of the `.github/` directory containing this file).

@@ -28,11 +28,7 @@ If multiple output ports exist, ask which one. For each candidate, you need:
 
 ### Step 2 — Build the scrub plan
 
-There are two ways to produce the scrub plan. Pick based on the agent you are running on:
-
-**On Claude Code — dispatch to the `pii-scanner` subagent.** Pass the data contract (path or pasted YAML) and the column list. The subagent returns a `### Scrub plan` Markdown table with one verdict per column (`keep` / `drop` / `hash`) and a reason. Apply its table verbatim — do not re-classify.
-
-**On any other agent (Codex, Copilot CLI, etc.) — do it inline** using these rules:
+Read the contract's field list. For each field, decide what to do with it:
 
 | Contract signal | Action |
 |---|---|
@@ -43,7 +39,7 @@ There are two ways to produce the scrub plan. Pick based on the agent you are ru
 | Free-text `comment`/`note`/`description` columns | Drop unless the user explicitly opts in (free text often leaks PII not declared in the contract) |
 | Everything else | Keep |
 
-Either way, show the user the scrub plan as a table — column → action — and **wait for confirmation before extracting any data.**
+Show the user the scrub plan as a table — column → action — and **wait for confirmation before extracting any data.**
 
 ### Step 3 — Extract the sample
 

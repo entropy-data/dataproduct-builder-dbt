@@ -21,10 +21,6 @@ When a user request matches a skill's trigger, **read the corresponding `SKILL.m
 
 The trigger phrasing above is illustrative; each `SKILL.md`'s frontmatter `description` is authoritative. Skills can also call other skills — e.g. `dataproduct-design` hands off to `dataproduct-bootstrap`, which hands off to `entropy-data-sync`; every platform-touching skill calls `entropy-data-connect` as its Step 0.
 
-## Subagents
-
-- **`agents/pii-scanner.md`** — read-only specialist that classifies columns in a sample dataset as `keep` / `drop` / `hash` and returns a structured scrub plan. Dispatched by `dataproduct-exampledata-upload` Step 2 on Claude Code; other agents fall back to inline scrubbing rules in the same step. Subagents are a Claude Code feature — Codex/Copilot ignore the `agents/` directory.
-
 ## Resolving `${PLUGIN_ROOT}`
 
 The skill files reference `${PLUGIN_ROOT}` to locate `settings.json` and `templates/`. On Claude Code this is set automatically as `${CLAUDE_PLUGIN_ROOT}`; on Codex / Cursor / other agents reading this file, it is **not** set — resolve it as **the directory that contains this `AGENTS.md`** (the cloned repo root, which also contains `settings.json`, `.mcp.json`, and `skills/`).
