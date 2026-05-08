@@ -1,0 +1,10 @@
+version: 2
+
+# Declare external sources you read from. Example:
+#
+# sources:
+#   - name: operational_db
+#     schema: public
+#     tables:
+#       - name: organizations
+#       - name: members

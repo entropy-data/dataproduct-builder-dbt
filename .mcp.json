@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "entropy-data": {
+      "type": "http",
+      "url": "https://app.entropy-data.com/mcp"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+version: 2
+
+# Published output port tables (governed by datacontracts/<contract>.odcs.yaml).
+# One model per output port. The model name should match the output port table name.
+# models:
+#   - name: {{TABLE}}
+#     description: {{PURPOSE}}

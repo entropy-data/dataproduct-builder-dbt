@@ -1,0 +1,15 @@
+{
+  "name": "dataproduct-builder-dbt",
+  "version": "0.1.0",
+  "description": "Build data products with dbt and integrate them with Entropy Data.",
+  "author": {
+    "name": "Entropy Data",
+    "url": "https://entropy-data.com"
+  },
+  "homepage": "https://github.com/entropy-data/dataproduct-builder-dbt",
+  "repository": "https://github.com/entropy-data/dataproduct-builder-dbt",
+  "license": "MIT",
+  "keywords": ["dbt", "data-product", "data-contract", "entropy-data", "odcs", "odps", "openlineage"],
+  "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json"
+}
