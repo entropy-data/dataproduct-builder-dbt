@@ -64,12 +64,6 @@ The `dataproduct-bootstrap` skill will gather the parameters, scaffold the dbt p
 
 The `entropy-data-sync` skill will audit, report what is missing, and create the missing files.
 
-## MCP server
-
-The plugin auto-installs the **Entropy Data MCP** server (`https://app.entropy-data.com/mcp`) so the agent can discover data products, fetch and save data contracts, request access, run `datacontract test`, and execute queries. Authorization happens on first tool call (OAuth, same flow as `/mcp add`).
-
-Self-hosters: edit `mcpServers.entropy-data.url` in [`.mcp.json`](.mcp.json) and `mcpUrl` in [`settings.json`](settings.json) to your deployment's host.
-
 ## Configuration
 
 Plugin defaults live in [`settings.json`](settings.json) at the plugin root:
