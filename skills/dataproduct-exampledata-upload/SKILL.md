@@ -102,7 +102,7 @@ Print:
 1. The output port the sample was uploaded for.
 2. The dropped/hashed columns (so the user has an audit trail).
 3. A reminder to delete `examples/<DATA_PRODUCT_ID>-<OUTPUT_PORT_ID>.yaml` from disk if it contains anything they don't want lying around (offer to delete it).
-4. The Entropy Data UI URL where the sample is now visible (construct from `apiHost` in `settings.json` if you can; otherwise just say "visible in Entropy Data under this data product").
+4. A note that the sample is now visible in Entropy Data under this data product.
 
 ## Constraints
 

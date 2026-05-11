@@ -84,15 +84,17 @@ Plugin defaults live in [`settings.json`](settings.json) at the plugin root:
 
 ```json
 {
-  "apiHost": "https://api.entropy-data.com",
-  "mcpUrl": "https://app.entropy-data.com/mcp"
+  "entropyDataHost": "https://api.entropy-data.com"
 }
 ```
 
-| Key | Default | Description |
-|---|---|---|
-| `apiHost` | `https://api.entropy-data.com` | Base URL of the Entropy Data REST API. Substituted into `openlineage.yml` and the GitHub Actions workflow when a skill scaffolds a project. |
-| `mcpUrl` | `https://app.entropy-data.com/mcp` | URL of the Entropy Data MCP server. Used by skills that reference the MCP; the plugin manifest must be edited separately to actually rewire the server. |
+| Key | Env override | Default | Description |
+|---|---|---|---|
+| `entropyDataHost` | `ENTROPY_DATA_HOST` | `https://api.entropy-data.com` | Base URL of the Entropy Data REST API. Substituted into `openlineage.yml` and the GitHub Actions workflow when a skill scaffolds a project. Same variable is read by the `datacontract` CLI when publishing test results. |
+
+The MCP server URL is configured separately in [`.mcp.json`](.mcp.json). It defaults to `https://app.entropy-data.com/mcp` and can be overridden by setting `ENTROPY_DATA_MCP` in your shell or CI environment — the `.mcp.json` reads it as `${ENTROPY_DATA_MCP:-https://app.entropy-data.com/mcp}`.
+
+For most users the defaults are fine. Self-hosted Entropy Data deployments either set the env vars in their shell profile and CI, or fork the repo and edit `settings.json` once.
 
 ## Customization
 
@@ -100,7 +102,7 @@ This plugin is a starting point, not a finished product. Organizations with thei
 
 Common extension points:
 
-- **[`settings.json`](settings.json)** — point `apiHost`, `mcpUrl`, and `webUrl` at your self-hosted Entropy Data deployment.
+- **[`settings.json`](settings.json)** — point `entropyDataHost` at your self-hosted Entropy Data deployment.
 - **[`.mcp.json`](.mcp.json)** — change the MCP server URL or add additional MCP servers your team relies on.
 - **Templates** under [`skills/dataproduct-bootstrap/templates/`](skills/dataproduct-bootstrap/templates/) and [`skills/entropy-data-sync/templates/`](skills/entropy-data-sync/templates/) — these ship the ODPS, ODCS, OpenLineage transport, GitHub Actions workflow, and dbt project skeleton that the bootstrap and sync skills install. Replace any of them to match your conventions (e.g. swap GitHub Actions for GitLab CI, change the model layer naming, embed company-specific tags).
 - **Skills** — add your own `skills/<name>/SKILL.md` for organization-specific flows: internal data-quality checks, governance approvals, downstream sync to your data catalog, etc. Update `AGENTS.md` and `.github/copilot-instructions.md` so the routing tables surface them.

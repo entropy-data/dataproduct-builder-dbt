@@ -37,7 +37,7 @@ It then invokes **entropy-data-sync** to add `<id>.odps.yaml`, `datacontracts/`,
 
 ### Step 0 — Load plugin settings
 
-Read `${PLUGIN_ROOT}/settings.json`. Extract `apiHost` and remember it as `API_HOST` (default `https://api.entropy-data.com`). Pass it through to the integration skill in Step 5 so both skills agree on the host.
+Resolve `API_HOST` with this precedence: `$ENTROPY_DATA_HOST` env var if set, else `entropyDataHost` from `${PLUGIN_ROOT}/settings.json`, else `https://api.entropy-data.com`. Pass it through to the integration skill in Step 5 so both skills agree on the host.
 
 ### Step 1 — Pre-checks
 

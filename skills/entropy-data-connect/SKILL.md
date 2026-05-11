@@ -16,7 +16,6 @@ Make sure the `entropy-data` CLI has a working API-key connection to the user's 
 - `entropy-data --version` is on PATH and reports **0.3.3 or later**.
   - If the CLI is missing: print `uv tool install entropy-data` and stop.
   - If the version is older: print `uv tool install --upgrade entropy-data` and stop.
-- Read `${PLUGIN_ROOT}/settings.json` to get `webUrl` (default `https://app.entropy-data.com`); used only as a fallback when prompting the user where to open the browser. The CLI's stored connection is the source of truth for the actual API host.
 
 ### Step 1 — Try the existing connection
 
@@ -33,13 +32,27 @@ entropy-data connection test
 
 If `connection test` succeeds but the user passed `--connection <name>` or asked you to use a non-default connection, run `entropy-data connection test -c <name>` instead and apply the same logic.
 
-### Step 2 — Create a user-scoped API key
+### Step 2 — Set up a user-scoped API key
 
-Tell the user, in this exact shape:
+**If `$ENTROPY_DATA_API_KEY` is already exported in the user's shell**, reuse it instead of asking the user to create a new key. Ask only for the host (the API key is opaque, the host is not):
+
+> Found `ENTROPY_DATA_API_KEY` in your environment. What is your Entropy Data host (the URL from your browser's address bar after login, e.g. `https://acme.entropy-data.com`)? Default: `https://api.entropy-data.com`.
+
+If `$ENTROPY_DATA_HOST` is also set, use that as the default instead of prompting.
+
+Then run:
+
+```
+entropy-data connection add <name> --api-key "$ENTROPY_DATA_API_KEY" --host <host>
+```
+
+Use the variable reference literal (`$ENTROPY_DATA_API_KEY`), not the expanded value, so the key does not enter the transcript. Derive `<name>` from the host's first subdomain (see below). Continue to Step 3.
+
+**Otherwise, walk the user through creating one.** Tell them, in this exact shape:
 
 > To connect to Entropy Data, I need a user-scoped API key. Please:
 >
-> 1. Open **`<webUrl>`** in your browser and log in to your organization.
+> 1. Open Entropy Data in your browser and log in to your organization.
 > 2. From your address bar after login, copy the URL — that's your **host** (e.g. `https://acme.entropy-data.com`).
 > 3. In the web UI, go to **Organization Settings → API Keys → Create new API key**. Select as Scope `User (personal token)`. Copy the key.
 

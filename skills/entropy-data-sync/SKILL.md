@@ -28,9 +28,15 @@ Work in this exact order. Do not skip the audit.
 
 ### Step 0 — Load plugin settings
 
-Read `${PLUGIN_ROOT}/settings.json`. Extract `apiHost` and remember it as `API_HOST`. The default is `https://api.entropy-data.com`. This value is used to substitute the `{{API_HOST}}` placeholder in `openlineage.yml` and the GitHub Actions workflow. Organizations self-hosting Entropy Data will have edited this file in their fork.
+Resolve `API_HOST` with this precedence:
 
-If `settings.json` is missing or malformed, fall back to `https://api.entropy-data.com` and warn the user.
+1. `$ENTROPY_DATA_HOST` environment variable, if set and non-empty.
+2. `entropyDataHost` from `${PLUGIN_ROOT}/settings.json`, if the file exists and the key is present.
+3. Default `https://api.entropy-data.com`.
+
+`API_HOST` is used to substitute the `{{API_HOST}}` placeholder in `openlineage.yml` and the GitHub Actions workflow. Organizations self-hosting Entropy Data typically set the env var on dev machines and CI, or edit `settings.json` in their fork.
+
+If `settings.json` is malformed (and the env var is unset), fall back to the default and warn the user.
 
 ### Step 1 — Confirm this is a dbt project
 
@@ -80,7 +86,7 @@ Before generating files, fill in these placeholders. Infer from the project wher
 | `CATALOG` / `SCHEMA` | — | Ask the user (Databricks: catalog + schema; Snowflake: database + schema; BigQuery: project + dataset) |
 | `DBT_PROFILE` | `DBT_PROJECT_NAME` | Used in the workflow's `profiles.yml` block |
 | `ODPS_FILE` | `<DATA_PRODUCT_ID>.odps.yaml` | Path passed to `entropy-data dataproducts put` |
-| `API_HOST` | from `settings.json` | Loaded in Step 0; substituted into `openlineage.yml` and the workflow |
+| `API_HOST` | from `$ENTROPY_DATA_HOST` or `settings.json` | Loaded in Step 0; substituted into `openlineage.yml` and the workflow |
 | `GIT_REPOSITORY_URL` | `git remote get-url origin` | Used by `gitconnection put`. If no `origin`, ask the user; if the remote is `git@…` SSH form, convert to the equivalent HTTPS URL the platform expects |
 | `GIT_REPOSITORY_BRANCH` | `git rev-parse --abbrev-ref HEAD`, falling back to `main` | Used by `gitconnection put`; if HEAD is detached, ask the user |
 | `GIT_CONNECTION_TYPE` | inferred from `GIT_REPOSITORY_URL`: `github.com` → `github`, `gitlab.com` → `gitlab`, `bitbucket.org` → `bitbucket`, `dev.azure.com` / `*.visualstudio.com` → `azuredevops` | Ask the user only if the host doesn't match any of these |
