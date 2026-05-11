@@ -1,7 +1,7 @@
 {
-  "name": "entropy-data",
+  "name": "dataproduct-builder-dbt",
   "interface": {
-    "displayName": "Entropy Data Plugins",
+    "displayName": "Data Product Builder Plugins",
     "shortDescription": "Coding-agent plugins from Entropy Data."
   },
   "plugins": [
