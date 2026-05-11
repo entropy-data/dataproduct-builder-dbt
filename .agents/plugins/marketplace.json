@@ -8,8 +8,8 @@
     {
       "name": "dataproduct-builder-dbt",
       "source": {
-        "source": "local",
-        "path": "../../"
+        "source": "url",
+        "url": "https://github.com/entropy-data/dataproduct-builder-dbt.git"
       },
       "policy": {
         "installation": "AVAILABLE"
