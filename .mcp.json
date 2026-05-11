@@ -2,7 +2,10 @@
   "mcpServers": {
     "entropy-data": {
       "type": "http",
-      "url": "https://app.entropy-data.com/mcp"
+      "url": "https://app.entropy-data.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${ENTROPY_DATA_API_KEY}"
+      }
     }
   }
 }

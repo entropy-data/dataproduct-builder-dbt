@@ -46,6 +46,20 @@ codex plugin install dataproduct-builder-dbt
 
 Codex reads the marketplace catalog at [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) and the per-plugin manifest at [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json), wiring up skills, the Entropy Data MCP server, and the ODCS-lint hook automatically. Verify with `codex plugin list`. The plugin manifest at [`AGENTS.md`](AGENTS.md) is the routing table the agent uses to pick the right skill.
 
+### Authenticate
+
+The skills authenticate against Entropy Data with a user-scoped API key. 
+
+Create a user-scoped key in the Entropy Data web UI (**Organization Settings → API Keys → Create new API key**, scope `User (personal token)`), then export it once before launching your agent:
+
+```
+export ENTROPY_DATA_API_KEY=<your-api-key>
+```
+
+Add the export to your shell profile (`~/.zshrc`, `~/.bashrc`) to persist it across sessions. 
+
+For CI workflows, consider using a team-scoped or organization-scoped API key.
+
 ### Other agents (Cursor, Aider, etc.)
 
 Most agents that read `AGENTS.md` will pick up the routing manifest at the repo root automatically when invoked from inside the cloned plugin. For agents invoked from your own project, point them at the plugin's `AGENTS.md` from your project's instruction file, or follow the Codex-style manual MCP + skills setup adapted to your tool.
