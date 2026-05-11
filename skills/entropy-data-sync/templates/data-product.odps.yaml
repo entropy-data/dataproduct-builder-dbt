@@ -36,3 +36,5 @@ customProperties:
     value: "consumer-aligned"
   - property: "visibility"
     value: "internal"
+  - property: "dataProductBuilder"
+    value: "https://github.com/entropy-data/dataproduct-builder-dbt"
