@@ -55,7 +55,7 @@ For each row in the table above, check whether the artifact is present. For row 
 - `entropy-data dataproducts gitconnection get <DATA_PRODUCT_ID> -o json`
 - `entropy-data datacontracts gitconnection get <CONTRACT_ID> -o json` for each contract under `datacontracts/`
 
-If a `get` returns a 404 (or "not found"), mark that connection as missing. If it returns a connection whose `repository-url` / `repository-path` / `repository-branch` does not match the local repo, mark it as **drifted** and call it out separately — do not silently overwrite. If the underlying data product or contract doesn't exist on the platform yet (the workflow hasn't run for the first time), mark git connections as **deferred** with a one-line explanation.
+If a `get` returns a 404 (or "not found"), mark that connection as missing. If it returns a connection whose `repository-url` / `repository-path` / `repository-branch` does not match the local repo, mark it as **drifted** and call it out separately — do not silently overwrite. If the underlying data product or contract doesn't exist on the platform yet (the workflow hasn't run for the first time), or if the working directory is not a git repository (`git rev-parse --is-inside-work-tree` errors or returns `false`), mark git connections as **deferred** with a one-line explanation.
 
 Produce a short audit report like:
 
@@ -126,7 +126,7 @@ If the `models:` block already exists, only add missing keys; do not clobber the
 
 #### Step 4b — Configure git connections
 
-Only run this sub-step if the audit (Step 2) flagged at least one git connection as **missing** or the user confirmed re-creating a **drifted** one. Skip entirely if every connection is already correct, or if the audit marked them as **deferred**.
+Only run this sub-step if the audit (Step 2) flagged at least one git connection as **missing** or the user confirmed re-creating a **drifted** one. Skip entirely if every connection is already correct, if the audit marked them as **deferred**, or if the working directory is not a git repository (check with `git rev-parse --is-inside-work-tree` — if it errors or returns `false`, there's no remote to register; tell the user to run `git init` and add a remote first, then re-run this skill).
 
 For the data product:
 
