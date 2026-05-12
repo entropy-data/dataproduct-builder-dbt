@@ -16,7 +16,7 @@ When a user request matches a skill's trigger, **read the corresponding `SKILL.m
 | Implementing a data product from a published Entropy Data URL or id — derive dbt output-port models from the ODCS schema | `skills/dataproduct-implement/SKILL.md` |
 | Editing a data contract (`datacontracts/*.odcs.yaml`) and testing whether the change is breaking | `skills/datacontract-edit/SKILL.md` |
 | Uploading example / sample rows for a data product to Entropy Data | `skills/dataproduct-exampledata-upload/SKILL.md` |
-| Listing teams in Entropy Data (e.g. to pick `TEAM_NAME` as the data product owner) | `skills/team-list/SKILL.md` |
+| Listing teams in Entropy Data (e.g. to pick `TEAM_NAME` as the data product owner) | `skills/entropy-data-teams/SKILL.md` |
 
 The trigger phrasing above is illustrative; each `SKILL.md`'s frontmatter `description` is authoritative. Skills can also call other skills — e.g. `dataproduct-design` hands off to `dataproduct-bootstrap`, which hands off to `entropy-data-sync`. Platform-touching skills verify the `entropy-data` CLI connection with `entropy-data connection test` as their Step 0 and abort if it fails; they do not prompt for credentials themselves.
 

@@ -86,7 +86,7 @@ Before generating files, fill in these placeholders. Infer from the project wher
 | `CONTRACT_FILE` | `<contract_id>.odcs.yaml` | File under `datacontracts/` |
 | `TABLE` | last segment of `DBT_PROJECT_NAME` | Output table name |
 | `PURPOSE` | — | Ask the user (one sentence) |
-| `TEAM_NAME` | — | If `<DATA_PRODUCT_ID>.odps.yaml` already exists with a `team.name`, use that. Otherwise, prefer a team `id` registered in Entropy Data — invoke the **team-list** skill (in this same plugin) so the user can pick from the existing teams, and use the returned `id`. Fall back to a free-text answer only if `team-list` cannot run (CLI unavailable / not authenticated) |
+| `TEAM_NAME` | — | If `<DATA_PRODUCT_ID>.odps.yaml` already exists with a `team.name`, use that. Otherwise, prefer a team `id` registered in Entropy Data — invoke the **entropy-data-teams** skill (in this same plugin) so the user can pick from the existing teams, and use the returned `id`. Fall back to a free-text answer only if `entropy-data-teams` cannot run (CLI unavailable / not authenticated) |
 | `TAG` | — | Ask the user (e.g. a `usecases/...` slug) |
 | `PLATFORM` | — | Ask the user: `databricks`, `snowflake`, `bigquery`, `s3`, `postgres` |
 | `CATALOG` / `SCHEMA` | — | Ask the user (Databricks: catalog + schema; Snowflake: database + schema; BigQuery: project + dataset) |

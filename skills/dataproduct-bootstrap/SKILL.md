@@ -57,7 +57,7 @@ Ask the user for these in a single prompt. Do not generate any files until you h
 
 Set `DBT_PROJECT_NAME = DATA_PRODUCT_ID`.
 
-**Picking `TEAM_NAME`**: prefer a team `id` that already exists in Entropy Data so the data product slots into the team-scoped views in the UI. If the user does not already know the team id, invoke the **team-list** skill (in this same plugin), let them pick, and use the returned `id` as `TEAM_NAME`. A free-text value is still accepted (the ODPS schema does not enforce membership), but the registered id is preferred.
+**Picking `TEAM_NAME`**: prefer a team `id` that already exists in Entropy Data so the data product slots into the team-scoped views in the UI. If the user does not already know the team id, invoke the **entropy-data-teams** skill (in this same plugin), let them pick, and use the returned `id` as `TEAM_NAME`. A free-text value is still accepted (the ODPS schema does not enforce membership), but the registered id is preferred.
 
 ### Step 3 — Pick the dbt adapter and profile block
 

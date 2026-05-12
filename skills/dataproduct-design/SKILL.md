@@ -84,9 +84,7 @@ Add **quality rules** the consumer will rely on: row-count thresholds, freshness
 
 ### Step 5 — Choose the owning team
 
-Invoke the **`team-list`** skill so the user can pick from registered teams. Use the returned team `id` as `team.name` in the ODPS draft.
-
-If the user explicitly wants a free-text owner (e.g. an external consultancy that isn't in Entropy Data), accept the string but warn that team-scoped views in the UI will not include this data product.
+Invoke the **`entropy-data-teams`** skill so the user can pick from registered teams. Use the returned team `id` as `team.name` in the ODPS draft.
 
 ### Step 6 — Compute the data product id and persist the drafts
 
@@ -141,7 +139,7 @@ If Step 7 deferred any access requests, include them verbatim in the final user-
 
 - **Don't write SQL or implementation logic.** This skill produces specs only. Model bodies are TODOs that `dataproduct-implement` (or the user) fills in later.
 - **Don't invent contract fields.** Every column must trace to either (a) an input-port field the user picked, (b) a primary-entity identifier, (c) a clearly-named derived metric, or (d) a standard system column.
-- **Don't skip the team-list lookup** — `team.name` should match a registered team unless the user explicitly opts out.
+- **Don't skip the entropy-data-teams lookup** — `team.name` should match a registered team unless the user explicitly opts out.
 - **Don't run `dbt init` or scaffold dbt files.** That's `dataproduct-bootstrap`'s job; mixing the two confuses re-runs.
 - **Don't commit the drafts.** Leave VCS state to the user; the next-skill handoff produces the rest of the project tree before any commit makes sense.
 - **Read-only against the platform for discovery.** This skill calls `entropy-data search query`, `entropy-data dataproducts get`, and `entropy-data semantics search`. The only write it issues is `entropy-data access request` for input-port access — itself a request, not a publish. No `datacontracts put`, no `dataproducts put` — those happen via the workflow scaffolded later.

@@ -1,5 +1,5 @@
 ---
-name: team-list
+name: entropy-data-teams
 description: List the teams configured in Entropy Data so the user can pick one as the owner (`team.name` in ODPS) of a data product. Useful when bootstrapping a new data product, integrating an existing dbt project, or just exploring who owns what. Trigger when the user asks "what teams are there", "who can own this data product", "list teams in Entropy Data", or when another skill needs to fill in `TEAM_NAME` and the user does not already know it.
 ---
 
@@ -76,8 +76,8 @@ If invoked directly by the user (not as a sub-step), stop after Step 3/4 — do 
 
 ## When other skills should call this
 
-- **`dataproduct-bootstrap`** Step 2: when batching parameters, if the user does not provide `TEAM_NAME`, offer to invoke `team-list` instead of asking for a free-text string.
-- **`entropy-data-sync`** Step 3: same — if the project doesn't already have a `team.name` in `<id>.odps.yaml` and the user can't recall the team id, offer `team-list`.
+- **`dataproduct-bootstrap`** Step 2: when batching parameters, if the user does not provide `TEAM_NAME`, offer to invoke `entropy-data-teams` instead of asking for a free-text string.
+- **`entropy-data-sync`** Step 3: same — if the project doesn't already have a `team.name` in `<id>.odps.yaml` and the user can't recall the team id, offer `entropy-data-teams`.
 
 A free-text team name is still acceptable (the ODPS schema doesn't enforce that the name matches a registered team), but a value picked from this list is preferred because it stays consistent with the Entropy Data UI and team-scoped views.
 
