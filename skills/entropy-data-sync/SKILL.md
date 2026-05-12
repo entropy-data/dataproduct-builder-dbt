@@ -57,6 +57,8 @@ For each row in the table above, check whether the artifact is present. For row 
 
 If a `get` returns a 404 (or "not found"), mark that connection as missing. If it returns a connection whose `repository-url` / `repository-path` / `repository-branch` does not match the local repo, mark it as **drifted** and call it out separately — do not silently overwrite. If the underlying data product or contract doesn't exist on the platform yet (the workflow hasn't run for the first time), or if the working directory is not a git repository (`git rev-parse --is-inside-work-tree` errors or returns `false`), mark git connections as **deferred** with a one-line explanation.
 
+For row 1 (ODPS file), also check that the top-level `customProperties` list contains an entry with `property: "dataProductBuilder"` and `value: "https://github.com/entropy-data/dataproduct-builder-dbt"`. If the file exists but the property is missing, mark the ODPS as **incomplete** with a one-line note ("missing dataProductBuilder customProperty"); Step 4 will add it without touching other fields. Forks of this plugin should substitute their own builder URL in the template before publishing.
+
 Produce a short audit report like:
 
 ```
@@ -100,6 +102,16 @@ Before generating files, fill in these placeholders. Infer from the project wher
 ### Step 4 — Apply the fixes
 
 For each missing artifact, copy the corresponding template from `${PLUGIN_ROOT}/skills/entropy-data-sync/templates/` into the user's project, substituting placeholders. Do **not** overwrite existing files; if a file is present but incomplete, surface the diff and ask before changing.
+
+If the ODPS file exists but was flagged as **incomplete — missing dataProductBuilder customProperty** in Step 2, append the entry to the top-level `customProperties` list (do not reorder or touch other entries):
+
+```yaml
+customProperties:
+  - property: "dataProductBuilder"
+    value: "https://github.com/entropy-data/dataproduct-builder-dbt"
+```
+
+Surface the diff and ask before saving.
 
 The templates live at:
 
