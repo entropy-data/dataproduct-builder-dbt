@@ -33,11 +33,7 @@ It then invokes **entropy-data-sync** to add `<id>.odps.yaml`, `datacontracts/`,
 
 ## How to run this skill
 
-> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `settings.json`, `.mcp.json`, and `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
-
-### Step 0 — Load plugin settings
-
-Resolve `API_HOST` with this precedence: `$ENTROPY_DATA_HOST` env var if set, else `entropyDataHost` from `${PLUGIN_ROOT}/settings.json`, else `https://api.entropy-data.com`. Pass it through to the integration skill in Step 5 so both skills agree on the host.
+> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
 ### Step 1 — Pre-checks
 
@@ -95,7 +91,7 @@ Also create empty directories `analyses/`, `macros/`, `seeds/`, `snapshots/`, `t
 
 Now the dbt skeleton is in place. Invoke the **entropy-data-sync** skill (in this same plugin) to add ODPS, ODCS, OpenLineage transport, and the GitHub Actions workflow.
 
-Pass the parameters you already collected (`DATA_PRODUCT_ID`, `DATA_PRODUCT_NAME`, `PURPOSE`, `TEAM_NAME`, `PLATFORM`, `CATALOG`, `SCHEMA`, `TABLE`, `API_HOST`) so the user does not have to answer them again.
+Pass the parameters you already collected (`DATA_PRODUCT_ID`, `DATA_PRODUCT_NAME`, `PURPOSE`, `TEAM_NAME`, `PLATFORM`, `CATALOG`, `SCHEMA`, `TABLE`) so the user does not have to answer them again. `entropy-data-sync` resolves `API_HOST` itself from the entropy-data CLI connection.
 
 The integration skill will run its own audit — since this is a fresh project, every artifact will be reported as missing and created.
 

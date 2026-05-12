@@ -1,0 +1,19 @@
+{
+  "name": "dataproduct-builder-dbt",
+  "owner": {
+    "name": "Entropy Data",
+    "email": "hello@entropy-data.com"
+  },
+  "metadata": {
+    "description": "Coding-agent plugins from Entropy Data.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "dataproduct-builder-dbt",
+      "description": "Build data products with dbt and integrate them with Entropy Data.",
+      "version": "0.1.0",
+      "source": "."
+    }
+  ]
+}

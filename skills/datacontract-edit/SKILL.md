@@ -9,7 +9,7 @@ Change a `datacontracts/*.odcs.yaml` file, run the contract test, and tell the u
 
 ## How to run this skill
 
-> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `settings.json`, `.mcp.json`, and `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
+> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
 ### Step 0 — Locate the contract
 
@@ -52,7 +52,7 @@ Pre-reqs the CLI needs (verify before running, fail fast with a clear message if
 - `datacontract` on PATH (`datacontract --version`).
 - The chosen server's credentials available as env vars per the ODCS server block (e.g. `DATACONTRACT_SNOWFLAKE_USERNAME` / `..._PASSWORD`, or `DATACONTRACT_DATABRICKS_TOKEN`). Tell the user which env vars are missing — do not try to source them yourself.
 
-Do **not** use the MCP `datacontract_test` tool from this skill. The CLI runs against the local edited file and gives line-level failure detail; the MCP tool tests the server-side published version, which is the *previous* contract — that defeats the point of testing the edit.
+Do **not** use the platform's server-side contract-test endpoint from this skill. The local `datacontract` CLI runs against the edited file and gives line-level failure detail; testing the published version on the server would test the *previous* contract, which defeats the point of testing the edit.
 
 ### Step 3 — Classify the outcome
 
@@ -85,5 +85,5 @@ Print:
 
 - **Always run the test after every edit.** A passing edit looks the same as a breaking edit until you run it.
 - **Don't edit the dbt models in this skill.** Changing the contract is a separate decision from changing the implementation. If the user wants both, run `dataproduct-implement` after this skill.
-- **Don't fetch a remote version of the contract** — operate on the local file. If the user wants to pull the published version, ask them to do that explicitly first (it can be a one-line MCP `datacontract_get` + Write).
+- **Don't fetch a remote version of the contract** — operate on the local file. If the user wants to pull the published version, ask them to do that explicitly first (it can be a one-line `entropy-data datacontracts get <id> -o json` redirected to the file).
 - **Idempotent**: re-running with the same edit should be a no-op (same diff = empty, same test = same result).

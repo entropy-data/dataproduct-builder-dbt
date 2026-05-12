@@ -24,19 +24,23 @@ A dbt project is well-integrated with Entropy Data when it has all of:
 
 Work in this exact order. Do not skip the audit.
 
-> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `settings.json`, `.mcp.json`, and `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
+> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
-### Step 0 — Load plugin settings
+### Step 0 — Verify the Entropy Data CLI connection and read the host
 
-Resolve `API_HOST` with this precedence:
+Confirm `entropy-data --version` is on PATH. If missing, tell the user to run `uv tool install entropy-data` and stop.
 
-1. `$ENTROPY_DATA_HOST` environment variable, if set and non-empty.
-2. `entropyDataHost` from `${PLUGIN_ROOT}/settings.json`, if the file exists and the key is present.
-3. Default `https://api.entropy-data.com`.
+Run `entropy-data connection test`. If it fails (no connection, expired key, etc.), stop and tell the user to run `entropy-data connection add <name> --host <host> --api-key <key>` first. Do not prompt for the key yourself.
 
-`API_HOST` is used to substitute the `{{API_HOST}}` placeholder in `openlineage.yml` and the GitHub Actions workflow. Organizations self-hosting Entropy Data typically set the env var on dev machines and CI, or edit `settings.json` in their fork.
+Once the test passes, resolve `API_HOST` from the active connection:
 
-If `settings.json` is malformed (and the env var is unset), fall back to the default and warn the user.
+```
+entropy-data connection get -o json
+```
+
+Use the `host` field from the response. This is the same host the CLI authenticates against, so OpenLineage events and the GitHub Actions workflow point at the same Entropy Data deployment the user is already logged in to.
+
+`API_HOST` substitutes the `{{API_HOST}}` placeholder in `openlineage.yml` and the GitHub Actions workflow. Self-hosted deployments are handled via `entropy-data connection add --host <host>`, not a plugin-level setting.
 
 ### Step 1 — Confirm this is a dbt project
 
@@ -86,7 +90,7 @@ Before generating files, fill in these placeholders. Infer from the project wher
 | `CATALOG` / `SCHEMA` | — | Ask the user (Databricks: catalog + schema; Snowflake: database + schema; BigQuery: project + dataset) |
 | `DBT_PROFILE` | `DBT_PROJECT_NAME` | Used in the workflow's `profiles.yml` block |
 | `ODPS_FILE` | `<DATA_PRODUCT_ID>.odps.yaml` | Path passed to `entropy-data dataproducts put` |
-| `API_HOST` | from `$ENTROPY_DATA_HOST` or `settings.json` | Loaded in Step 0; substituted into `openlineage.yml` and the workflow |
+| `API_HOST` | `entropy-data connection get -o json` → `host` | Loaded in Step 0; substituted into `openlineage.yml` and the workflow |
 | `GIT_REPOSITORY_URL` | `git remote get-url origin` | Used by `gitconnection put`. If no `origin`, ask the user; if the remote is `git@…` SSH form, convert to the equivalent HTTPS URL the platform expects |
 | `GIT_REPOSITORY_BRANCH` | `git rev-parse --abbrev-ref HEAD`, falling back to `main` | Used by `gitconnection put`; if HEAD is detached, ask the user |
 | `GIT_CONNECTION_TYPE` | inferred from `GIT_REPOSITORY_URL`: `github.com` → `github`, `gitlab.com` → `gitlab`, `bitbucket.org` → `bitbucket`, `dev.azure.com` / `*.visualstudio.com` → `azuredevops` | Ask the user only if the host doesn't match any of these |

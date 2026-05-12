@@ -17,19 +17,12 @@ When a user request matches a skill's trigger, **read the corresponding `SKILL.m
 | Editing a data contract (`datacontracts/*.odcs.yaml`) and testing whether the change is breaking | `skills/datacontract-edit/SKILL.md` |
 | Uploading example / sample rows for a data product to Entropy Data | `skills/dataproduct-exampledata-upload/SKILL.md` |
 | Listing teams in Entropy Data (e.g. to pick `TEAM_NAME` as the data product owner) | `skills/team-list/SKILL.md` |
-| Logging in to Entropy Data / setting up the API key for the CLI | `skills/entropy-data-connect/SKILL.md` |
 
-The trigger phrasing above is illustrative; each `SKILL.md`'s frontmatter `description` is authoritative. Skills can also call other skills — e.g. `dataproduct-design` hands off to `dataproduct-bootstrap`, which hands off to `entropy-data-sync`; every platform-touching skill calls `entropy-data-connect` as its Step 0.
+The trigger phrasing above is illustrative; each `SKILL.md`'s frontmatter `description` is authoritative. Skills can also call other skills — e.g. `dataproduct-design` hands off to `dataproduct-bootstrap`, which hands off to `entropy-data-sync`. Platform-touching skills verify the `entropy-data` CLI connection with `entropy-data connection test` as their Step 0 and abort if it fails; they do not prompt for credentials themselves.
 
 ## Resolving `${PLUGIN_ROOT}`
 
-The skill files reference `${PLUGIN_ROOT}` to locate `settings.json` and `templates/`. On Claude Code this is set automatically as `${CLAUDE_PLUGIN_ROOT}`; on Copilot CLI it is **not** set — resolve it as the cloned repo root (the directory that contains `settings.json`, `.mcp.json`, and `skills/`; i.e. the parent of the `.github/` directory containing this file).
-
-## MCP server
-
-Several skills call tools on the Entropy Data MCP server at `https://app.entropy-data.com/mcp` (search/fetch data products, get/save/test data contracts, request access, execute queries). The `.mcp.json` file in this repo is in Claude Code / Claude Desktop config format. Register the same URL with Copilot CLI via its MCP configuration — consult the Copilot CLI docs for how.
-
-If the MCP server is not configured, skills that need it will fail; surface the error to the user and stop rather than improvising a workaround.
+The skill files reference `${PLUGIN_ROOT}` to locate `templates/`. On Claude Code this is set automatically as `${CLAUDE_PLUGIN_ROOT}`; on Copilot CLI it is **not** set — resolve it as the cloned repo root (the directory that contains `skills/`; i.e. the parent of the `.github/` directory containing this file).
 
 ## CLIs the skills shell out to
 

@@ -1,6 +1,6 @@
 ---
 name: dataproduct-design
-description: Design a new data product before scaffolding — capture the business question, identify candidate input ports via the Entropy Data MCP, decide grain and refresh cadence, draft the output-port data contract (columns, types, quality rules), and choose an owning team. Produces a draft `<id>.odps.yaml` and `datacontracts/<contract>.odcs.yaml` that `dataproduct-bootstrap` (or `entropy-data-sync` for an existing dbt project) can pick up. Trigger when the user asks to "design a new data product", "plan a data product", "what data product should we build for …", or wants help thinking through a data product before building it.
+description: Design a new data product before scaffolding — capture the business question, identify candidate input ports via the entropy-data CLI, decide grain and refresh cadence, draft the output-port data contract (columns, types, quality rules), and choose an owning team. Produces a draft `<id>.odps.yaml` and `datacontracts/<contract>.odcs.yaml` that `dataproduct-bootstrap` (or `entropy-data-sync` for an existing dbt project) can pick up. Trigger when the user asks to "design a new data product", "plan a data product", "what data product should we build for …", or wants help thinking through a data product before building it.
 ---
 
 # Design a new data product
@@ -11,11 +11,11 @@ Use this when the user has a business question or use case but no clear shape fo
 
 ## How to run this skill
 
-> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `settings.json`, `.mcp.json`, and `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
+> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
 ### Step 0 — Pre-checks
 
-- Run `entropy-data-connect` so MCP/CLI calls in later steps work. Abort if it fails.
+- Confirm `entropy-data --version` is on PATH (install with `uv tool install entropy-data` if not) and `entropy-data connection test` succeeds. If the test fails, stop and tell the user to run `entropy-data connection add <name> --host <host> --api-key <key>`.
 - Confirm the working directory is either empty (greenfield) or already a dbt project (`dbt_project.yml` exists). If neither, ask the user where they want the design to land.
 
 ### Step 1 — Capture the business question
@@ -35,9 +35,9 @@ Reject vague answers (*"general analytics"*) — push back once with a specific 
 
 Discover existing data products that could feed this one:
 
-1. Call MCP `search` with terms derived from the business question (entities like `customer`, `account`, `subscription`, `usage`).
-2. For each promising hit, call `fetch` to read its output ports, owner team, and contract summary.
-3. Optionally call `semantics_search_concepts` / `semantics_find_data_products_for_concept` for ontology-level matches.
+1. **Optional — explore semantic concepts first.** If the organization has a semantic ontology, the entities in the business question may map to first-class concepts. Run `entropy-data semantics namespaces list -o json` to see what's defined. For each likely namespace, run `entropy-data semantics search <namespace> "<term>" -o json` for the entities you extracted (e.g. `customer`, `account`, `subscription`, `usage`). Concept hits with `kind: entity` or `kind: metric` indicate agreed-on definitions; note the concept `id`s for later traceability. The CLI doesn't list which data products implement a concept — for that, open the concept in the Entropy Data web UI, or move on to step 2.
+2. **Find candidate data products by text.** Run `entropy-data search query "<term>" -o json` for each entity. The response lists resources matching the term across name, description, and tags. Filter to `resourceType == "DataProduct"` if the search returned mixed types.
+3. **Inspect each candidate.** For each promising hit, run `entropy-data dataproducts get <id> -o json` to read its output ports, owner team, and contract ids.
 
 Show the user a short candidate table:
 
@@ -47,7 +47,17 @@ Show the user a short candidate table:
 | `dp_subscription_billing` | `mrr_monthly` | billing-team | Brings in MRR and renewal dates |
 | `dp_support_tickets` | `tickets_open` | support-team | Open-incident counts |
 
-Ask the user to **confirm or pick a subset**. For each chosen input port, note the data product id, output port id, and contract id; you'll wire these as `inputPorts` in the ODPS draft. If the user does not have access to a chosen input port, run `request_access` via MCP — but don't block; access can resolve in parallel.
+Ask the user to **confirm or pick a subset**. For each chosen input port, note the data product id, output port id, and contract id; you'll wire these as `inputPorts` in the ODPS draft.
+
+If the user doesn't already have access to a chosen input port, request it:
+
+```
+entropy-data access request <data-product-id> <output-port-id> \
+  --purpose "<reason this design needs the input>" \
+  --consumer-team <consuming-team-id>
+```
+
+Don't block on access — the design draft does not depend on it. The platform routes the request based on the provider's access policy (auto-approve or manual review).
 
 ### Step 3 — Decide grain, cadence, primary entity
 
@@ -122,5 +132,5 @@ The downstream skill is responsible for placing the dbt models, not this one.
 - **Don't skip the team-list lookup** — `team.name` should match a registered team unless the user explicitly opts out.
 - **Don't run `dbt init` or scaffold dbt files.** That's `dataproduct-bootstrap`'s job; mixing the two confuses re-runs.
 - **Don't commit the drafts.** Leave VCS state to the user; the next-skill handoff produces the rest of the project tree before any commit makes sense.
-- **Read-only against the platform.** This skill calls MCP `search`/`fetch`/`semantics_*` and at most `request_access`. No `datacontract_save`, no `dataproducts put` — those happen via the workflow scaffolded later.
+- **Read-only against the platform for discovery.** This skill calls `entropy-data search query`, `entropy-data dataproducts get`, and `entropy-data semantics search`. The only write it issues is `entropy-data access request` for input-port access — itself a request, not a publish. No `datacontracts put`, no `dataproducts put` — those happen via the workflow scaffolded later.
 - **Idempotent**: re-running with the same answers should produce the same drafts (with a diff prompt if files already exist).

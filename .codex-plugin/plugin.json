@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "Data Product Builder for dbt",
     "shortDescription": "Build dbt data products integrated with Entropy Data.",
-    "longDescription": "Coding-agent plugin for the full data-product lifecycle on dbt: design a new data product, scaffold the dbt project (greenfield), audit and integrate an existing dbt project with the Entropy Data reference layout (ODPS, ODCS, OpenLineage, GitHub Actions, git connections), implement output-port models from a published data contract, edit and test contracts, upload sample data, and manage CLI authentication. Ships eight skills, the pii-scanner Claude subagent, an ODCS-lint hook, and the Entropy Data MCP server.",
+    "longDescription": "Coding-agent plugin for the full data-product lifecycle on dbt: design a new data product, scaffold the dbt project (greenfield), audit and integrate an existing dbt project with the Entropy Data reference layout (ODPS, ODCS, OpenLineage, GitHub Actions, git connections), implement output-port models from a published data contract, edit and test contracts, upload sample data, and manage CLI authentication. Ships eight skills, the pii-scanner Claude subagent, and an ODCS-lint hook.",
     "developerName": "Entropy Data",
     "category": "Data",
     "capabilities": ["Read", "Write"],
@@ -27,6 +27,5 @@
     ]
   },
   "skills": "./skills/",
-  "mcpServers": "./.mcp.json",
   "hooks": "./hooks/hooks.json"
 }

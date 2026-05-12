@@ -15,12 +15,12 @@ Turn an Entropy Data data product into a working dbt pipeline. The data contract
 
 ## How to run this skill
 
-> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `settings.json`, `.mcp.json`, and `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
+> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
 ### Step 0 — Pre-checks
 
 - Confirm `dbt_project.yml` exists at the working directory root. If not, ask whether to run `dataproduct-bootstrap` first, then stop.
-- Confirm the Entropy Data MCP server is reachable (a single MCP tool call is enough). If not, tell the user to authenticate and stop.
+- Confirm `entropy-data --version` is on PATH (install with `uv tool install entropy-data` if not) and `entropy-data connection test` succeeds. If the test fails, stop and tell the user to run `entropy-data connection add <name> --host <host> --api-key <key>`.
 
 ### Step 1 — Resolve the data product
 
@@ -29,7 +29,7 @@ Accept either:
 - a full URL (e.g. `https://app.entropy-data.com/dataproducts/<id>`) — extract the trailing id, **or**
 - a bare data product id.
 
-Call the MCP tool `fetch` with that id. Remember the response as `DATA_PRODUCT`. Extract:
+Run `entropy-data dataproducts get <id> -o json`. Remember the response as `DATA_PRODUCT`. Extract:
 
 - `DATA_PRODUCT_ID`, `DATA_PRODUCT_NAME`, owning team, purpose
 - the list of output ports — each has an id, a server (catalog/schema/table), and a linked data contract id
@@ -38,7 +38,7 @@ If the data product has more than one output port, ask the user which one(s) to 
 
 ### Step 2 — Fetch the data contracts
 
-For each selected output port, call `datacontract_get` with the contract id from the data product. Remember the response as `CONTRACT`. The fields you need:
+For each selected output port, run `entropy-data datacontracts get <contract-id> -o json` with the contract id from the data product. Remember the response as `CONTRACT`. The fields you need:
 
 - `models` (table name → list of fields with `type`, `required`, `unique`, `description`, `classification`)
 - `servers` (so the output port's server config is consistent with the contract)
@@ -79,12 +79,12 @@ Print:
 3. The next manual steps:
    - Fill in the `from` clause / business logic for each output-port model.
    - Run `dbt run` and `dbt test` locally.
-   - Run the contract test: `datacontract test datacontracts/<file>.odcs.yaml` (or via the MCP `datacontract_test` tool).
+   - Run the contract test: `datacontract test datacontracts/<file>.odcs.yaml`.
 
 ## Constraints
 
 - **Contract is source of truth for schema, not logic.** Generate column names, types, and tests from the contract; do not invent SQL transformations. SQL bodies must be left as TODOs unless the user asks you to fill them.
-- **Don't fetch contracts from disk if they exist locally** — always re-fetch via MCP so the implementation matches the published version. After fetch, write the contract to `datacontracts/<contract_id>.odcs.yaml` so it is version-controlled.
+- **Don't fetch contracts from disk if they exist locally** — always re-fetch via `entropy-data datacontracts get` so the implementation matches the published version. After fetch, write the contract to `datacontracts/<contract_id>.odcs.yaml` so it is version-controlled.
 - **Don't overwrite existing dbt SQL files**. If `models/output_ports/v1/<table>.sql` already exists, surface the diff and ask before changing.
 - **Idempotent**: re-running the skill with the same data product id should be a no-op when contract and local files already agree.
 - **Do not commit or push** — leave VCS state to the user.

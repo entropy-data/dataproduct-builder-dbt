@@ -9,7 +9,7 @@ Sample rows let prospective consumers evaluate a data product without requesting
 
 ## How to run this skill
 
-> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `settings.json`, `.mcp.json`, and `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
+> `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
 ### Step 0 — Pre-checks
 
@@ -54,8 +54,7 @@ limit <N>;
 Default `N = 20`. Use the dbt non-prod target chosen in Step 0. Preferred extraction methods, in order:
 
 1. `dbt show --inline "<sql>" --target <non-prod-target>` — uses the dbt connection, no extra credentials needed.
-2. The MCP `execute_query` tool, **only if** the data product is registered and you have access. This is rarely the right tool here because the source is upstream, not the data product itself.
-3. As a last resort, ask the user to run the query and paste the result.
+2. As a fallback, ask the user to run the query themselves and paste the result.
 
 Convert the result rows into a list of objects keyed by **the contract column names** (the names that will be visible to consumers, not the warehouse aliases). Hold the rows in memory as `ROWS` for the next step — do not write a CSV. The `entropy-data example-data put` command takes a YAML/JSON body, not a CSV.
 

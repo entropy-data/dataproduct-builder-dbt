@@ -4,7 +4,7 @@ A coding-agent plugin that helps you build data products with [dbt](https://www.
 
 ## Skills
 
-The plugin ships eight skills:
+The plugin ships seven skills:
 
 - **dataproduct-design** — designs a new data product *before* scaffolding: captures the business question, discovers candidate input ports via Entropy Data, decides grain and refresh cadence, drafts the output-port data contract, and picks the owning team. Produces a draft `<id>.odps.yaml` and `datacontracts/<contract>.odcs.yaml`, then hands off to bootstrap (greenfield) or sync (existing dbt project).
 - **dataproduct-bootstrap** — scaffolds a brand-new dbt data product from scratch (greenfield): `dbt_project.yml`, model layout, README with `uv` install instructions, `profiles.yml.example` for the chosen warehouse, then hands off to the sync skill.
@@ -13,7 +13,8 @@ The plugin ships eight skills:
 - **datacontract-edit** — edits a `datacontracts/*.odcs.yaml`, runs `datacontract test` against the live server, and classifies each failure as breaking-schema, breaking-quality, additive, or unrelated, with concrete fix suggestions.
 - **dataproduct-exampledata-upload** — extracts ~20 sample rows via a non-prod dbt profile, drops PII columns flagged in the contract (and obvious name-based PII), and uploads the scrubbed sample with `entropy-data example-data put`. Two explicit user confirmations before anything leaves the machine.
 - **team-list** — lists the teams configured in Entropy Data so the user can pick a `TEAM_NAME` (used as the data product owner). Read-only; invoked by the bootstrap and sync skills when the user does not already know the team id.
-- **entropy-data-connect** — ensures the `entropy-data` CLI has a working API-key connection to the user's organization. Validates an existing connection or walks the user through creating a user-scoped key. Invoked as Step 0 by every other skill that calls Entropy Data; can also be run directly to "log in".
+
+Skills assume the `entropy-data` CLI is already authenticated. Run `entropy-data connection add <name> --host <host> --api-key <key>` once before invoking any platform-touching skill.
 
 ## Install
 
@@ -21,48 +22,52 @@ The skills are plain markdown — any coding agent that can read instruction fil
 
 ### Claude Code
 
+Inside an interactive session:
+
 ```
-/plugin install entropy-data/dataproduct-builder-dbt
+/plugin marketplace add https://github.com/entropy-data/dataproduct-builder-dbt
+/plugin install dataproduct-builder-dbt@dataproduct-builder-dbt
 ```
 
-`${CLAUDE_PLUGIN_ROOT}` is set automatically; the skills use it to find `settings.json` and the templates.
+`${CLAUDE_PLUGIN_ROOT}` is set automatically; the skills use it to find the templates. See the [Claude Code plugin docs](https://code.claude.com/docs/en/discover-plugins) for details.
 
-### Copilot CLI
+### OpenAI Codex
+
+Add the marketplace from the terminal:
+
+```
+codex plugin marketplace add https://github.com/entropy-data/dataproduct-builder-dbt
+```
+
+Then open Codex, run `/plugins`, and pick `dataproduct-builder-dbt` from the directory. Codex reads the marketplace catalog at [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) and the per-plugin manifest at [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json), wiring up skills and the ODCS-lint hook automatically. The routing table at [`AGENTS.md`](AGENTS.md) tells the agent how to pick the right skill. See the [Codex plugin docs](https://developers.openai.com/codex/plugins) for details.
+
+### GitHub Copilot CLI
 
 Inside an interactive session:
 
 ```
-/plugin install github.com/entropy-data/dataproduct-builder-dbt
+/plugin marketplace add https://github.com/entropy-data/dataproduct-builder-dbt
+/plugin install dataproduct-builder-dbt@dataproduct-builder-dbt
 ```
 
-Copilot CLI reads `skills/<name>/SKILL.md` and the `.mcp.json` shipped with this repo natively, so the skills and the Entropy Data MCP server are wired up after install. Verify with `/plugin list` and `/skills`. The plugin manifest at [`.github/copilot-instructions.md`](.github/copilot-instructions.md) provides the routing table the agent uses to pick the right skill.
+Copilot CLI reads `skills/<name>/SKILL.md` natively, so the skills are wired up after install. Verify with `/plugin list` and `/skills`. The routing table at [`.github/copilot-instructions.md`](.github/copilot-instructions.md) tells the agent how to pick the right skill. See the [Copilot CLI plugin docs](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing) for details.
 
-### Codex CLI
+### Connect
 
-```
-codex plugin marketplace add entropy-data/dataproduct-builder-dbt
-codex plugin install dataproduct-builder-dbt
-```
+The skills authenticate against Entropy Data through a connection registered with the [entropy-data CLI](https://github.com/entropy-data/entropy-data-cli) (requires [uv](https://docs.astral.sh/uv/)).
 
-Codex reads the marketplace catalog at [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) and the per-plugin manifest at [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json), wiring up skills, the Entropy Data MCP server, and the ODCS-lint hook automatically. Verify with `codex plugin list`. The plugin manifest at [`AGENTS.md`](AGENTS.md) is the routing table the agent uses to pick the right skill.
-
-### Authenticate
-
-The skills authenticate against Entropy Data with a user-scoped API key. 
-
-Create a user-scoped key in the Entropy Data web UI (**Organization Settings → API Keys → Create new API key**, scope `User (personal token)`), then export it once before launching your agent:
+Create a user-scoped key in the Entropy Data web UI (**Organization Settings → API Keys → Create new API key**, scope `User (personal token)`), install the CLI, and register the connection:
 
 ```
-export ENTROPY_DATA_API_KEY=<your-api-key>
+uv tool install --upgrade entropy-data
+entropy-data connection add default --api-key <your-api-key> --host <your-entropy-data-host>
 ```
 
-Add the export to your shell profile (`~/.zshrc`, `~/.bashrc`) to persist it across sessions. 
-
-For CI workflows, consider using a team-scoped or organization-scoped API key.
+Every skill picks up the active connection, so `--host` doubles as the configuration knob for self-hosted Entropy Data deployments. For CI workflows, register a connection with a team-scoped or organization-scoped API key.
 
 ### Other agents (Cursor, Aider, etc.)
 
-Most agents that read `AGENTS.md` will pick up the routing manifest at the repo root automatically when invoked from inside the cloned plugin. For agents invoked from your own project, point them at the plugin's `AGENTS.md` from your project's instruction file, or follow the Codex-style manual MCP + skills setup adapted to your tool.
+Most agents that read `AGENTS.md` will pick up the routing manifest at the repo root automatically when invoked from inside the cloned plugin. For agents invoked from your own project, point them at the plugin's `AGENTS.md` from your project's instruction file, or follow the Codex-style skills setup adapted to your tool.
 
 ## Use
 
@@ -80,21 +85,7 @@ The `entropy-data-sync` skill will audit, report what is missing, and create the
 
 ## Configuration
 
-Plugin defaults live in [`settings.json`](settings.json) at the plugin root:
-
-```json
-{
-  "entropyDataHost": "https://api.entropy-data.com"
-}
-```
-
-| Key | Env override | Default | Description |
-|---|---|---|---|
-| `entropyDataHost` | `ENTROPY_DATA_HOST` | `https://api.entropy-data.com` | Base URL of the Entropy Data REST API. Substituted into `openlineage.yml` and the GitHub Actions workflow when a skill scaffolds a project. Same variable is read by the `datacontract` CLI when publishing test results. |
-
-The MCP server URL is configured separately in [`.mcp.json`](.mcp.json). It defaults to `https://app.entropy-data.com/mcp` and can be overridden by setting `ENTROPY_DATA_MCP` in your shell or CI environment — the `.mcp.json` reads it as `${ENTROPY_DATA_MCP:-https://app.entropy-data.com/mcp}`.
-
-For most users the defaults are fine. Self-hosted Entropy Data deployments either set the env vars in their shell profile and CI, or fork the repo and edit `settings.json` once.
+The plugin reads the Entropy Data host from the active `entropy-data` CLI connection (`entropy-data connection get -o json` → `host`). Run `entropy-data connection add <name> --host <host> --api-key <key>` once and every skill picks up the same host — for self-hosted Entropy Data deployments, point that `--host` at your deployment URL.
 
 ## Customization
 
@@ -102,15 +93,12 @@ This plugin is a starting point, not a finished product. Organizations with thei
 
 Common extension points:
 
-- **[`settings.json`](settings.json)** — point `entropyDataHost` at your self-hosted Entropy Data deployment.
-- **[`.mcp.json`](.mcp.json)** — change the MCP server URL or add additional MCP servers your team relies on.
 - **Templates** under [`skills/dataproduct-bootstrap/templates/`](skills/dataproduct-bootstrap/templates/) and [`skills/entropy-data-sync/templates/`](skills/entropy-data-sync/templates/) — these ship the ODPS, ODCS, OpenLineage transport, GitHub Actions workflow, and dbt project skeleton that the bootstrap and sync skills install. Replace any of them to match your conventions (e.g. swap GitHub Actions for GitLab CI, change the model layer naming, embed company-specific tags).
 - **Skills** — add your own `skills/<name>/SKILL.md` for organization-specific flows: internal data-quality checks, governance approvals, downstream sync to your data catalog, etc. Update `AGENTS.md` and `.github/copilot-instructions.md` so the routing tables surface them.
 - **Hooks** — extend [`hooks/hooks.json`](hooks/hooks.json) with additional `PostToolUse` validators (e.g. an internal lint on `models/**/*.sql`, or a check that team names match your IdP).
 - **Subagents** — add Claude Code subagents under `agents/` for read-only specialist roles (e.g. a PII scanner tuned to your classification taxonomy, a contract-review specialist for your terms-of-use boilerplate).
 
-After customizing, rename the plugin in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json), then publish under your own GitHub organization or GitLab repository. 
-Internal users install with `/plugin install <your-org>/<your-fork>` (Claude Code), `/plugin install github.com/<your-org>/<your-fork>` (Copilot CLI), or `codex plugin marketplace add <your-org>/<your-fork>` (Codex).
+After customizing, rename the plugin in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json), then publish under your own GitHub organization or GitLab repository. Internal users install with `/plugin marketplace add <your-repo-url>` followed by `/plugin install <your-fork>@<your-fork>` (Claude Code, Copilot CLI), or `codex plugin marketplace add <your-repo-url>` then `/plugins` in Codex.
 
 If a change you've made is broadly useful, [open an issue or PR upstream](https://github.com/entropy-data/dataproduct-builder-dbt/issues), generic improvements are very welcome.
 
