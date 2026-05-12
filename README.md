@@ -4,9 +4,8 @@ A coding-agent plugin that helps you build data products with [dbt](https://www.
 
 ## Skills
 
-The plugin ships seven skills:
+The plugin ships six skills:
 
-- **[dataproduct-design](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/dataproduct-design/SKILL.md)** — designs a new data product *before* scaffolding: captures the business question, discovers candidate input ports via Entropy Data, decides grain and refresh cadence, drafts the output-port data contract, and picks the owning team. Produces a draft `<id>.odps.yaml` and `datacontracts/<contract>.odcs.yaml`, then hands off to bootstrap (greenfield) or sync (existing dbt project).
 - **[dataproduct-bootstrap](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/dataproduct-bootstrap/SKILL.md)** — scaffolds a brand-new dbt data product from scratch (greenfield): `dbt_project.yml`, model layout, README with `uv` install instructions, `profiles.yml.example` for the chosen warehouse, then hands off to the sync skill.
 - **[entropy-data-sync](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/entropy-data-sync/SKILL.md)** — audits an existing dbt project against the Entropy Data reference layout (`<id>.odps.yaml`, `datacontracts/`, `openlineage.yml`, `models/{input_ports,staging,intermediate,output_ports}`, GitHub Actions workflow, git connections) and adds anything that is missing.
 - **[dataproduct-implement](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/dataproduct-implement/SKILL.md)** — given an Entropy Data data product URL or id, fetches its data contracts and translates the ODCS schema into dbt models under `models/output_ports/v1/` (column list, types, tests). SQL bodies are left as TODOs — no invented business logic.
