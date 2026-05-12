@@ -1,0 +1,28 @@
+{
+  "name": "dataproduct-builder-dbt",
+  "owner": {
+    "name": "Entropy Data",
+    "email": "hello@entropy-data.com"
+  },
+  "description": "Coding-agent plugins from Entropy Data.",
+  "plugins": [
+    {
+      "name": "dataproduct-builder-dbt",
+      "source": {
+        "source": "github",
+        "repo": "entropy-data/dataproduct-builder-dbt"
+      },
+      "description": "Build data products with dbt and integrate them with Entropy Data.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Entropy Data",
+        "url": "https://entropy-data.com"
+      },
+      "homepage": "https://github.com/entropy-data/dataproduct-builder-dbt",
+      "repository": "https://github.com/entropy-data/dataproduct-builder-dbt",
+      "license": "MIT",
+      "keywords": ["dbt", "data-product", "data-contract", "entropy-data", "odcs", "odps", "openlineage"],
+      "category": "Data"
+    }
+  ]
+}
