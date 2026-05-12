@@ -25,9 +25,10 @@ Before running Step 0, print this plan to the user verbatim:
 > 1. Pre-checks: confirm this is a dbt project, the `dbt` CLI is installed, and the `entropy-data` CLI is connected.
 > 2. Resolve the data product by id or URL (`entropy-data dataproducts get`).
 > 3. Fetch each selected output port's data contract (`entropy-data datacontracts get`).
-> 4. Translate the ODCS schema into dbt models under `models/output_ports/v1/` (column list, types, tests; SQL bodies as TODOs).
-> 5. Hand off to `entropy-data-sync` to add any missing publishing artifacts (ODPS, OpenLineage, GitHub Actions).
-> 6. Summarize what was generated and the open TODOs.
+> 4. Translate the ODCS schema into dbt models under `models/output_ports/v1/` (column list, types, tests).
+> 5. Implement the dbt model bodies: declare input ports as dbt sources and write the `select` from input ports to output columns (with confirmation; complex joins left as TODOs).
+> 6. Hand off to `entropy-data-sync` to add any missing publishing artifacts (ODPS, OpenLineage, GitHub Actions).
+> 7. Summarize what was generated and the open TODOs.
 
 Then proceed.
 
@@ -80,13 +81,30 @@ For each contract:
 
 Pick the dialect from the contract's `servers[].type` (or, if absent, ask).
 
-### Step 4 — Hand off to entropy-data-sync
+### Step 4 — Implement the model bodies
+
+Ask the user: "Want me to wire the output-port models to the input ports, or leave the `from` clauses as TODOs?" Default to wiring them. If the user declines, skip this step and continue to Step 5.
+
+For each output port table:
+
+1. **Declare each candidate input port as a dbt source.** For every provider data product / output port the consumer has access to (from Step 3.2), fetch its contract (`entropy-data datacontracts get <contract-id> -o json`) so you know its server location and columns. Add a `sources:` entry under `models/input_ports/_models.yml`:
+   - `name`: the provider's data product id (or output port id if multiple ports come from the same product)
+   - `schema` / `database`: from the provider output port's `server.schema` / `server.catalog`
+   - `tables`: one entry per output port table, with `description` and `columns` populated from the input contract
+2. **Match input columns to output columns.** Build a column-by-column map: for each output column in the contract, find the input column with the same name (or an obvious synonym, e.g. `customer_id` ↔ `account_id` only if the input contract's `description` makes it explicit). Don't guess — if no clear match, leave that column as a `null as <col>` placeholder with a `-- TODO: derive from ...` comment.
+3. **Write the SQL body.**
+   - **Single input source, columns match 1:1** → replace the TODO `from` with `from {{ source('<provider-id>', '<table>') }}` and project each output column with `cast(<input_col> as <warehouse_type>) as <output_col>`.
+   - **Multiple input sources** → leave the join logic as an inline TODO listing each candidate `{{ source(...) }}` reference and the join keys the user will need to confirm. Do not invent join predicates.
+   - **Derived / aggregated columns** (sums, ratios, windows implied by the contract description but not present in any input) → leave as `null as <col>` with a `-- TODO: compute <description from contract>` comment.
+4. **Compile to verify.** Run `dbt parse` (cheap, no warehouse roundtrip) to catch syntax errors and unknown source references. If it fails, fix the generated SQL before continuing. Do not run `dbt run` — that touches the warehouse and is the user's call.
+
+### Step 5 — Hand off to entropy-data-sync
 
 Call the **entropy-data-sync** skill (in this same plugin) so any missing publishing artifacts get created (`<id>.odps.yaml`, `openlineage.yml`, `.github/workflows/data-product.yml`). Pass the parameters you already resolved in Step 1 so the user is not re-asked.
 
 If `<id>.odps.yaml` already exists locally and disagrees with the fetched data product, **do not overwrite** — surface the diff and ask.
 
-### Step 5 — Final report
+### Step 6 — Final report
 
 End with this two-part recap. Use the same `Status` enum the other skills use: `created`, `updated`, `already present`, `deferred`, `skipped`.
 
@@ -96,13 +114,15 @@ End with this two-part recap. Use the same `Status` enum the other skills use: `
 |---|---|---|
 | Data product | already present | `<DATA_PRODUCT_ID>` — fetched from platform |
 | Data contract `<CONTRACT_ID>` | … | written to `datacontracts/<contract_id>.odcs.yaml` |
-| Model `<table>.sql` | … | `models/output_ports/v1/<table>.sql` (SQL body left as TODO) |
+| Input port sources | … | `models/input_ports/_models.yml` — `<N>` sources declared / skipped |
+| Model `<table>.sql` | … | `models/output_ports/v1/<table>.sql` — "wired to `<source>`" / "join TODO" / "skipped per user" |
 | `_models.yml` entry for `<table>` | … | tests derived from the contract |
+| `dbt parse` | … | "passed" / "failed: <reason>" / "skipped" |
 | `entropy-data-sync` handoff | … | "ran" / "skipped" — see sync's own report for ODPS/OpenLineage/workflow rows |
 
 **Part 2 — next steps.** Bullet list, include only what applies:
 
-- Fill in the `from` clause / business logic for each output-port model — one bullet per generated `<table>.sql` with the candidate input ports listed inline.
+- For each model with a join or derived-column TODO, list the inputs and the missing logic — one bullet per `<table>.sql`.
 - Run `dbt run` and `dbt test` locally to verify the generated models compile and pass the contract-derived tests.
 - Run the contract test: `datacontract test datacontracts/<file>.odcs.yaml` for each contract.
 - Any deferred items from the sync skill's report.
@@ -111,8 +131,7 @@ If there is nothing in Part 2, write a single line: `No further action required.
 
 ## Constraints
 
-- **Contract is source of truth for schema, not logic.** Generate column names, types, and tests from the contract; do not invent SQL transformations. SQL bodies must be left as TODOs unless the user asks you to fill them.
-- **Don't fetch contracts from disk if they exist locally** — always re-fetch via `entropy-data datacontracts get` so the implementation matches the published version. After fetch, write the contract to `datacontracts/<contract_id>.odcs.yaml` so it is version-controlled.
+- **Contract is source of truth for schema, not logic.** Generate column names, types, and tests from the contract. When wiring SQL bodies in Step 4, project and cast only — do not invent join predicates, aggregations, or column derivations. Anything not directly mappable from an input column stays a TODO.
 - **Don't overwrite existing dbt SQL files**. If `models/output_ports/v1/<table>.sql` already exists, surface the diff and ask before changing.
 - **Idempotent**: re-running the skill with the same data product id should be a no-op when contract and local files already agree.
 - **Do not commit or push** — leave VCS state to the user.

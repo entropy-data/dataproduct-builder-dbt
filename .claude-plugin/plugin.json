@@ -9,6 +9,5 @@
   "homepage": "https://github.com/entropy-data/dataproduct-builder-dbt",
   "repository": "https://github.com/entropy-data/dataproduct-builder-dbt",
   "license": "MIT",
-  "keywords": ["dbt", "data-product", "data-contract", "entropy-data", "odcs", "odps", "openlineage"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["dbt", "data-product", "data-contract", "entropy-data", "odcs", "odps", "openlineage"]
 }
