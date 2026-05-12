@@ -47,17 +47,7 @@ Show the user a short candidate table:
 | `dp_subscription_billing` | `mrr_monthly` | billing-team | Brings in MRR and renewal dates |
 | `dp_support_tickets` | `tickets_open` | support-team | Open-incident counts |
 
-Ask the user to **confirm or pick a subset**. For each chosen input port, note the data product id, output port id, and contract id; you'll wire these as `inputPorts` in the ODPS draft.
-
-If the user doesn't already have access to a chosen input port, request it:
-
-```
-entropy-data access request <data-product-id> <output-port-id> \
-  --purpose "<reason this design needs the input>" \
-  --consumer-team <consuming-team-id>
-```
-
-Don't block on access — the design draft does not depend on it. The platform routes the request based on the provider's access policy (auto-approve or manual review).
+Ask the user to **confirm or pick a subset**. For each chosen input port, note the data product id, output port id, and contract id; you'll wire these as `inputPorts` in the ODPS draft. Note whether the user already has access to each input port — Step 7 handles the access requests once the consumer data product's id is fixed.
 
 ### Step 3 — Decide grain, cadence, primary entity
 
@@ -116,7 +106,27 @@ Write two files (do **not** overwrite existing files; if either exists, surface 
 
 Show the file paths and a quick summary table (data product id, output port, owner, primary key, refresh cadence, classifications-of-concern). Wait for the user to confirm.
 
-### Step 7 — Hand off
+### Step 7 — Request access to input ports
+
+For each chosen input port where the user does **not** already have access, the new data product is the natural consumer. Issue the request only if `DATA_PRODUCT_ID` already exists on the platform — typically as an earlier `status: draft` registration, or from a re-run of this skill:
+
+```
+entropy-data dataproducts get <DATA_PRODUCT_ID> -o json
+```
+
+- **Exists (any status)** → request access immediately for each input port that needs it:
+
+  ```
+  entropy-data access request <input-data-product-id> <input-output-port-id> \
+    --purpose "<reason this design needs the input>" \
+    --consumer-dataproduct <DATA_PRODUCT_ID>
+  ```
+
+  Don't block on the outcome — the platform routes by the provider's policy (auto-approve or manual review).
+
+- **404** → the consumer data product does not exist on Entropy Data yet. Defer the access requests. In Step 8's final report, list the exact commands the user should run **after** the first CI publish from the GitHub Actions workflow scaffolded by sync. Do not fall back to a team-scoped request.
+
+### Step 8 — Hand off
 
 Two paths depending on the working directory:
 
@@ -124,6 +134,8 @@ Two paths depending on the working directory:
 - **Existing dbt project** → invoke `entropy-data-sync`. Sync will detect the new ODPS/ODCS files in its audit and wire up OpenLineage, GitHub Actions, and git connections.
 
 The downstream skill is responsible for placing the dbt models, not this one.
+
+If Step 7 deferred any access requests, include them verbatim in the final user-facing summary so they're easy to copy-paste after first publish.
 
 ## Constraints
 
