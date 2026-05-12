@@ -11,6 +11,21 @@ Sample rows let prospective consumers evaluate a data product without requesting
 
 > `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
+### Plan announcement (before Step 0)
+
+Before running Step 0, print this plan to the user verbatim:
+
+> Running **dataproduct-exampledata-upload**. I'll:
+> 1. Pre-checks: dbt project, ODCS files, `entropy-data` CLI, non-prod dbt target.
+> 2. Identify the output port and its contract.
+> 3. Build a scrub plan — drop PII/sensitive columns, hash IDs, drop free text. **Wait for your confirmation.**
+> 4. Extract ~20 sample rows via `dbt show` against the non-prod target.
+> 5. Build the example-data YAML and show the first rows. **Wait for your confirmation.**
+> 6. Upload via `entropy-data example-data put`.
+> 7. Summarize what was uploaded, what was scrubbed, and cleanup options.
+
+Then proceed.
+
 ### Step 0 — Pre-checks
 
 - Confirm `dbt_project.yml` exists at the working directory root.
@@ -96,12 +111,25 @@ If the CLI errors, surface the actual error and the relevant `--help` output to 
 
 ### Step 6 — Final report
 
-Print:
+End with this two-part recap. Use the same `Status` enum the other skills use: `created`, `updated`, `already present`, `deferred`, `skipped`.
 
-1. The output port the sample was uploaded for.
-2. The dropped/hashed columns (so the user has an audit trail).
-3. A reminder to delete `examples/<DATA_PRODUCT_ID>-<OUTPUT_PORT_ID>.yaml` from disk if it contains anything they don't want lying around (offer to delete it).
-4. A note that the sample is now visible in Entropy Data under this data product.
+**Part 1 — outcome table.**
+
+| Artifact | Status | Details |
+|---|---|---|
+| Output port | already present | `<DATA_PRODUCT_ID>/<OUTPUT_PORT_ID>` |
+| Scrub plan | … | `<dropped-count>` dropped, `<hashed-count>` hashed, `<kept-count>` kept |
+| Sample extraction | … | `<rows>` rows via `dbt show` (target `<non-prod-target>`) |
+| Example-data file | … | `examples/<DATA_PRODUCT_ID>-<OUTPUT_PORT_ID>.yaml` |
+| Upload to Entropy Data | … | `entropy-data example-data put` succeeded (upsert) |
+
+**Part 2 — next steps.** Bullet list:
+
+- Audit trail: list every column that was dropped or hashed inline so the user has a record of what's now visible to consumers.
+- Local cleanup: offer to delete `examples/<DATA_PRODUCT_ID>-<OUTPUT_PORT_ID>.yaml` if it contains anything the user doesn't want left on disk.
+- Visibility: the sample is now visible in Entropy Data under this data product (running the skill again upserts the same id and overwrites the previous sample).
+
+If there is nothing additional to surface, write a single line: `No further action required.`
 
 ## Constraints
 

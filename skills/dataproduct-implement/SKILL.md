@@ -17,6 +17,20 @@ Turn an Entropy Data data product into a working dbt pipeline. The data contract
 
 > `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
+### Plan announcement (before Step 0)
+
+Before running Step 0, print this plan to the user verbatim:
+
+> Running **dataproduct-implement**. I'll:
+> 1. Pre-checks: confirm this is a dbt project and the `entropy-data` CLI is connected.
+> 2. Resolve the data product by id or URL (`entropy-data dataproducts get`).
+> 3. Fetch each selected output port's data contract (`entropy-data datacontracts get`).
+> 4. Translate the ODCS schema into dbt models under `models/output_ports/v1/` (column list, types, tests; SQL bodies as TODOs).
+> 5. Hand off to `entropy-data-sync` to add any missing publishing artifacts (ODPS, OpenLineage, GitHub Actions).
+> 6. Summarize what was generated and the open TODOs.
+
+Then proceed.
+
 ### Step 0 — Pre-checks
 
 - Confirm `dbt_project.yml` exists at the working directory root. If not, ask whether to run `dataproduct-bootstrap` first, then stop.
@@ -72,14 +86,26 @@ If `<id>.odps.yaml` already exists locally and disagrees with the fetched data p
 
 ### Step 5 — Final report
 
-Print:
+End with this two-part recap. Use the same `Status` enum the other skills use: `created`, `updated`, `already present`, `deferred`, `skipped`.
 
-1. The output ports implemented and the dbt files written.
-2. Open TODOs in each generated SQL file (the missing `from` clauses).
-3. The next manual steps:
-   - Fill in the `from` clause / business logic for each output-port model.
-   - Run `dbt run` and `dbt test` locally.
-   - Run the contract test: `datacontract test datacontracts/<file>.odcs.yaml`.
+**Part 1 — outcome table.** One row per output port implemented.
+
+| Artifact | Status | Details |
+|---|---|---|
+| Data product | already present | `<DATA_PRODUCT_ID>` — fetched from platform |
+| Data contract `<CONTRACT_ID>` | … | written to `datacontracts/<contract_id>.odcs.yaml` |
+| Model `<table>.sql` | … | `models/output_ports/v1/<table>.sql` (SQL body left as TODO) |
+| `_models.yml` entry for `<table>` | … | tests derived from the contract |
+| `entropy-data-sync` handoff | … | "ran" / "skipped" — see sync's own report for ODPS/OpenLineage/workflow rows |
+
+**Part 2 — next steps.** Bullet list, include only what applies:
+
+- Fill in the `from` clause / business logic for each output-port model — one bullet per generated `<table>.sql` with the candidate input ports listed inline.
+- Run `dbt run` and `dbt test` locally to verify the generated models compile and pass the contract-derived tests.
+- Run the contract test: `datacontract test datacontracts/<file>.odcs.yaml` for each contract.
+- Any deferred items from the sync skill's report.
+
+If there is nothing in Part 2, write a single line: `No further action required.`
 
 ## Constraints
 

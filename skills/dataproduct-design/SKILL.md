@@ -13,6 +13,24 @@ Use this when the user has a business question or use case but no clear shape fo
 
 > `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
+### Plan announcement (before Step 0)
+
+Before running Step 0, print this plan to the user verbatim:
+
+> Running **dataproduct-design**. I'll:
+> 1. Pre-checks: verify the `entropy-data` CLI is connected, confirm the working directory.
+> 2. Capture the business question and decision context.
+> 3. Discover candidate input ports (semantic concepts + text search).
+> 4. Decide grain, cadence, and primary entity.
+> 5. Draft the output-port data contract.
+> 6. Pick the owning team.
+> 7. Compute the data product id and persist the ODPS + ODCS drafts.
+> 8. Request access to chosen input ports (deferred to next-steps if the consumer data product is not yet on Entropy Data).
+> 9. Summarize.
+> 10. Hand off to `dataproduct-bootstrap` (greenfield) or `entropy-data-sync` (existing dbt project).
+
+Then proceed.
+
 ### Step 0 — Pre-checks
 
 - Confirm `entropy-data --version` is on PATH (install with `uv tool install entropy-data` if not) and `entropy-data connection test` succeeds. If the test fails, stop and tell the user to run `entropy-data connection add <name> --host <host> --api-key <key>`.
@@ -122,9 +140,32 @@ entropy-data dataproducts get <DATA_PRODUCT_ID> -o json
 
   Don't block on the outcome — the platform routes by the provider's policy (auto-approve or manual review).
 
-- **404** → the consumer data product does not exist on Entropy Data yet. Defer the access requests. In Step 8's final report, list the exact commands the user should run **after** the first CI publish from the GitHub Actions workflow scaffolded by sync. Do not fall back to a team-scoped request.
+- **404** → the consumer data product does not exist on Entropy Data yet. Defer the access requests. The Step 8 final report's Part 2 will list the exact commands the user should run **after** the first CI publish from the GitHub Actions workflow scaffolded by sync. Do not fall back to a team-scoped request.
 
-### Step 8 — Hand off
+### Step 8 — Final report
+
+Before handing off, print this two-part recap. Use the same `Status` enum the other skills use: `created`, `updated`, `already present`, `deferred`, `skipped`.
+
+**Part 1 — outcome table.**
+
+| Artifact | Status | Details |
+|---|---|---|
+| ODPS draft | … | `<DATA_PRODUCT_ID>.odps.yaml` |
+| ODCS draft | … | `datacontracts/<CONTRACT_ID>.odcs.yaml` — <N> columns |
+| Input ports chosen | … | comma-separated `<dp-id>/<output-port-id>` list |
+| Owning team | … | `<team.id>` (or free-text if user opted out) |
+| Input-port access | … | "<N> requested" or "deferred" or "already had access" |
+
+For the **Owning team** and **Input ports chosen** rows, treat `Status = created` as "captured this run" and `already present` as "reused from existing files".
+
+**Part 2 — next steps.** Bullet list, include only what applies:
+
+- For each access request that was **deferred** (consumer DP not yet on Entropy Data), the exact `entropy-data access request <input-dp-id> <input-output-port-id> --purpose "…" --consumer-dataproduct <DATA_PRODUCT_ID>` command to run after the first CI publish.
+- "Next: handing off to `dataproduct-bootstrap`" or "Next: handing off to `entropy-data-sync`" depending on the working directory.
+
+If there are no deferred access requests, omit the first bullet.
+
+### Step 9 — Hand off
 
 Two paths depending on the working directory:
 
@@ -132,8 +173,6 @@ Two paths depending on the working directory:
 - **Existing dbt project** → invoke `entropy-data-sync`. Sync will detect the new ODPS/ODCS files in its audit and wire up OpenLineage, GitHub Actions, and git connections.
 
 The downstream skill is responsible for placing the dbt models, not this one.
-
-If Step 7 deferred any access requests, include them verbatim in the final user-facing summary so they're easy to copy-paste after first publish.
 
 ## Constraints
 

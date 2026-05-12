@@ -11,6 +11,19 @@ Print the teams configured in Entropy Data and — if invoked from another skill
 
 > `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
+### Plan announcement (before Step 0)
+
+Before running Step 0, print this plan to the user verbatim:
+
+> Running **entropy-data-teams**. I'll:
+> 1. Pre-checks: verify the `entropy-data` CLI is installed and a connection is configured.
+> 2. Fetch all teams from Entropy Data (paginated).
+> 3. Apply any filter you mentioned (substring on id/name/description, or type/tag match).
+> 4. Show the team list as a Markdown table.
+> 5. If invoked as a sub-step by another skill, ask you to pick one and return both `team.id` and `team.name` to the caller.
+
+Then proceed.
+
 ### Step 0 — Pre-checks
 
 - `entropy-data --version` is on PATH. If not, surface the install line from the README and stop.

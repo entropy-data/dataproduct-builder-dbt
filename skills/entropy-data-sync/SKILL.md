@@ -26,21 +26,25 @@ Work in this exact order. Do not skip the audit.
 
 > `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
-### Step 0 — Verify the Entropy Data CLI connection and read the host
+### Plan announcement (before Step 0)
+
+Before running Step 0, print the following plan to the user verbatim so they know what's about to happen:
+
+> Running **entropy-data-sync**. I'll:
+> 1. Verify the `entropy-data` CLI is installed and connected.
+> 2. Confirm this is a dbt project and pick up its name.
+> 3. Audit existing Entropy Data artifacts (ODPS, ODCS, OpenLineage, model layout, publish workflow, git connections).
+> 4. Gather any missing parameters from you (one batched question).
+> 5. Apply fixes — create missing files, patch incomplete ones, register git connections.
+> 6. Summarize what changed and what's deferred.
+
+Then proceed.
+
+### Step 0 — Verify the Entropy Data CLI connection
 
 Confirm `entropy-data --version` is on PATH. If missing, tell the user to run `uv tool install entropy-data` and stop.
 
 Run `entropy-data connection test`. If it fails (no connection, expired key, etc.), stop and tell the user to run `entropy-data connection add <name> --host <host> --api-key <key>` first. Do not prompt for the key yourself.
-
-Once the test passes, resolve `API_HOST` from the active connection:
-
-```
-entropy-data connection get -o json
-```
-
-Use the `host` field from the response. This is the same host the CLI authenticates against, so OpenLineage events and the GitHub Actions workflow point at the same Entropy Data deployment the user is already logged in to.
-
-`API_HOST` substitutes the `{{API_HOST}}` placeholder in `openlineage.yml` and the GitHub Actions workflow. Self-hosted deployments are handled via `entropy-data connection add --host <host>`, not a plugin-level setting.
 
 ### Step 1 — Confirm this is a dbt project
 
@@ -92,7 +96,7 @@ Before generating files, fill in these placeholders. Infer from the project wher
 | `CATALOG` / `SCHEMA` | — | Ask the user (Databricks: catalog + schema; Snowflake: database + schema; BigQuery: project + dataset) |
 | `DBT_PROFILE` | `DBT_PROJECT_NAME` | Used in the workflow's `profiles.yml` block |
 | `ODPS_FILE` | `<DATA_PRODUCT_ID>.odps.yaml` | Path passed to `entropy-data dataproducts put` |
-| `API_HOST` | `entropy-data connection get -o json` → `host` | Loaded in Step 0; substituted into `openlineage.yml` and the workflow |
+| `API_HOST` | `entropy-data connection get -o json` → `host` | Resolve in Step 4, only when writing `openlineage.yml` or the workflow. Uses the same host the CLI is authenticated against, so lineage and CI publish hit the same deployment |
 | `GIT_REPOSITORY_URL` | `git remote get-url origin` | Used by `gitconnection put`. If no `origin`, ask the user; if the remote is `git@…` SSH form, convert to the equivalent HTTPS URL the platform expects |
 | `GIT_REPOSITORY_BRANCH` | `git rev-parse --abbrev-ref HEAD`, falling back to `main` | Used by `gitconnection put`; if HEAD is detached, ask the user |
 | `GIT_CONNECTION_TYPE` | inferred from `GIT_REPOSITORY_URL`: `github.com` → `github`, `gitlab.com` → `gitlab`, `bitbucket.org` → `bitbucket`, `dev.azure.com` / `*.visualstudio.com` → `azuredevops` | Ask the user only if the host doesn't match any of these |
@@ -102,6 +106,14 @@ Before generating files, fill in these placeholders. Infer from the project wher
 ### Step 4 — Apply the fixes
 
 For each missing artifact, copy the corresponding template from `${PLUGIN_ROOT}/skills/entropy-data-sync/templates/` into the user's project, substituting placeholders. Do **not** overwrite existing files; if a file is present but incomplete, surface the diff and ask before changing.
+
+When (and only when) you're about to write `openlineage.yml` or `.github/workflows/data-product.yml`, resolve `API_HOST` from the active CLI connection:
+
+```
+entropy-data connection get -o json
+```
+
+Use the `host` field to substitute `{{API_HOST}}` in those templates. Self-hosted deployments are handled via `entropy-data connection add --host <host>`, not a plugin-level setting.
 
 If the ODPS file exists but was flagged as **incomplete — missing dataProductBuilder customProperty** in Step 2, append the entry to the top-level `customProperties` list (do not reorder or touch other entries):
 
@@ -173,15 +185,35 @@ Notes:
 
 ### Step 5 — Final report
 
-After applying fixes, print:
+Always end with this exact two-part format so the user gets a consistent recap.
 
-1. The list of files created/modified.
-2. The list of git connections created (or, if deferred, the exact commands to run after the workflow's first push).
-3. The next manual steps the user must take:
-   - Set GitHub repository secrets: `ENTROPY_DATA_API_KEY`, plus platform creds (`DBT_DATABRICKS_HOST`, `DBT_DATABRICKS_HTTP_PATH`, `DBT_DATABRICKS_TOKEN` for Databricks; equivalents for other platforms).
-   - Fill in the data contract schema in `datacontracts/<CONTRACT_FILE>` — the template only seeds `id` and `updated_at`.
-   - Run `dbt-ol run` locally once to verify lineage flows to Entropy Data (requires `OPENLINEAGE__TRANSPORT__AUTH__APIKEY`).
-   - If git connections were deferred, run the `gitconnection put` commands above after the GitHub Actions workflow has run for the first time (the data product and contracts must exist on the platform first).
+**Part 1 — outcome table.** One row per artifact from the audit. Use the `Status` enum below; `Details` is a short, plain-text note (file path, or "—" if nothing to add).
+
+| Artifact | Status | Details |
+|---|---|---|
+| ODPS file | … | … |
+| Data contract | … | … |
+| OpenLineage transport | … | … |
+| Model layout | … | … |
+| Publish workflow | … | … |
+| Git connections | … | … |
+
+`Status` enum (use exactly these words):
+
+- `created` — the skill wrote a new file or registered a new connection.
+- `updated` — the skill patched an existing file or fixed a drifted connection.
+- `already present` — no change needed.
+- `deferred` — skipped intentionally (data product/contract not yet published, or no git repo). The deferred command(s) appear in Part 2.
+- `skipped` — the user declined when asked to confirm.
+
+**Part 2 — next steps.** Bullet list, only include the items that apply:
+
+- For each `deferred` git connection, the exact `entropy-data dataproducts gitconnection put …` or `entropy-data datacontracts gitconnection put …` command to run after the first CI publish.
+- "Set GitHub repository secrets: `ENTROPY_DATA_API_KEY`, plus platform creds (`DBT_DATABRICKS_HOST`, `DBT_DATABRICKS_HTTP_PATH`, `DBT_DATABRICKS_TOKEN` for Databricks; equivalents for other platforms)."
+- "Fill in the data contract schema in `datacontracts/<CONTRACT_FILE>` — the template only seeds `id` and `updated_at`."
+- "Run `dbt-ol run` locally once to verify lineage flows to Entropy Data (requires `OPENLINEAGE__TRANSPORT__AUTH__APIKEY`)."
+
+If there is nothing in Part 2, write a single line: `No further action required.`
 
 ## Conventions and constraints
 

@@ -35,6 +35,20 @@ It then invokes **entropy-data-sync** to add `<id>.odps.yaml`, `datacontracts/`,
 
 > `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
+### Plan announcement (before Step 1)
+
+Before running Step 1, print this plan to the user verbatim:
+
+> Running **dataproduct-bootstrap**. I'll:
+> 1. Pre-checks: confirm the working directory is empty (greenfield only).
+> 2. Gather parameters from you in one batched question (data product id, team, platform, catalog/schema, table).
+> 3. Pick the dbt adapter and profile block for the chosen platform.
+> 4. Scaffold the dbt project (`dbt_project.yml`, `profiles.yml.example`, model layout, README, `.gitignore`).
+> 5. Hand off to `entropy-data-sync` for the publishing layer (ODPS, ODCS, OpenLineage, GitHub Actions).
+> 6. Summarize what was scaffolded and the next manual steps.
+
+Then proceed.
+
 ### Step 1 — Pre-checks
 
 - Confirm the working directory is empty, or that it contains only files the user is fine with (e.g. an empty git repo, a `LICENSE`, or a `README.md` that will be overwritten).
@@ -97,15 +111,30 @@ The integration skill will run its own audit — since this is a fresh project, 
 
 ### Step 6 — Final report
 
-After both skills have run, print:
+After both skills have run, end with this two-part recap. Use the same `Status` enum the other skills use: `created`, `updated`, `already present`, `deferred`, `skipped`.
 
-1. The full file tree that was created.
-2. The next manual steps:
-   - `uv venv && source .venv/bin/activate && uv pip install dbt-core <DBT_ADAPTER> openlineage-dbt datacontract-cli entropy-data`
-   - Copy `profiles.yml.example` to `~/.dbt/profiles.yml` and fill in credentials.
-   - `git init && git add . && git commit -m "Initial commit"` (if not already a repo).
-   - Create a GitHub repo and push; set the secrets called out by the integration skill (`ENTROPY_DATA_API_KEY`, platform creds).
-   - Fill in the data contract schema in `datacontracts/`.
+**Part 1 — outcome table.**
+
+| Artifact | Status | Details |
+|---|---|---|
+| `dbt_project.yml` | … | adapter = `<DBT_ADAPTER>`, models block configured |
+| `profiles.yml.example` | … | platform = `<PLATFORM>` |
+| `README.md` | … | new or merged into existing |
+| `.gitignore` | … | new or merged into existing |
+| Model layout | … | `models/{input_ports,staging,intermediate,output_ports/v1}/` + `_models.yml` placeholders |
+| Empty dbt dirs | … | `analyses/`, `macros/`, `seeds/`, `snapshots/`, `tests/` |
+| `entropy-data-sync` handoff | … | "ran" / "skipped" — see sync's own report for ODPS/ODCS/OpenLineage/workflow rows |
+
+**Part 2 — next steps.** Bullet list, include only what applies:
+
+- `uv venv && source .venv/bin/activate && uv pip install dbt-core <DBT_ADAPTER> openlineage-dbt datacontract-cli entropy-data`
+- Copy `profiles.yml.example` to `~/.dbt/profiles.yml` and fill in credentials.
+- `git init && git add . && git commit -m "Initial commit"` (if the directory is not already a git repo).
+- Create a GitHub repo and push; set the secrets called out by the sync skill (`ENTROPY_DATA_API_KEY`, platform creds).
+- Fill in the data contract schema in `datacontracts/<CONTRACT_FILE>`.
+- Any deferred items surfaced by the sync skill's report (e.g. git connections to register after first CI publish).
+
+If there is nothing in Part 2, write a single line: `No further action required.`
 
 ## Constraints
 

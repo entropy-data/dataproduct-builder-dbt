@@ -11,6 +11,19 @@ Change a `datacontracts/*.odcs.yaml` file, run the contract test, and tell the u
 
 > `${PLUGIN_ROOT}` below refers to the root of this plugin — the directory that contains `skills/`. On Claude Code it is set automatically as `${CLAUDE_PLUGIN_ROOT}` — use that. On any other agent (Codex, Copilot CLI, etc.) it is unset; resolve it as `../..` relative to **this `SKILL.md` file's directory** (i.e. the grandparent of `skills/<this-skill>/`).
 
+### Plan announcement (before Step 0)
+
+Before running Step 0, print this plan to the user verbatim:
+
+> Running **datacontract-edit**. I'll:
+> 1. Locate the contract file in `datacontracts/` that matches your request.
+> 2. Apply the edit in place and show you a unified diff.
+> 3. Run `datacontract test` against the live server to check the change.
+> 4. Classify each failure as breaking-schema, breaking-quality, additive, or unrelated.
+> 5. Report and suggest concrete fixes (no version bump, no v2 directory, no dbt model changes).
+
+Then proceed.
+
 ### Step 0 — Locate the contract
 
 - If the user named a contract file or column, find the matching file under `datacontracts/`.
@@ -69,15 +82,28 @@ For each failure, name the exact field/rule and which bucket it falls into. Don'
 
 ### Step 4 — Report and suggest fixes
 
-Print:
+End with this two-part recap. The `Status` column uses the shared enum (`created`, `updated`, `already present`, `deferred`, `skipped`), and below it a classification table covers any test failures.
 
-1. The diff applied in Step 1.
-2. The classification table from Step 3, with one row per failure.
-3. Concrete fix suggestions per failure:
-   - **Schema breaking**: bump to a new output port version (`models/output_ports/v2/`), keep v1 alive, add a deprecation note in `<id>.odps.yaml`.
-   - **Quality breaking**: a SQL snippet to find the offending rows in the source so the user can decide whether to clean, accept, or relax the rule.
-   - **Additive**: bump the contract's `version` minor, no consumer impact.
-4. If there are no failures, just say so and recommend the version bump (patch for cosmetic, minor for additive, major for breaking even if the test happened to pass).
+**Part 1 — outcome table.**
+
+| Artifact | Status | Details |
+|---|---|---|
+| Contract file | updated | `datacontracts/<file>.odcs.yaml` — show the unified diff inline |
+| Contract test | … | `pass`, `fail (<N> failures)`, or `not run (missing creds)` — name the server |
+| Breaking — schema | … | count of failures in this bucket, or "—" |
+| Breaking — quality | … | count of failures in this bucket, or "—" |
+| Non-breaking — additive | … | count of changes in this bucket, or "—" |
+| Test failures unrelated to the edit | … | count, or "—" |
+| Recommended version bump | … | `patch` / `minor` / `major` based on the edit |
+
+For the four "bucket" rows, leave `Status = —` and put the failure count + a one-line bucket description in `Details`.
+
+**Part 2 — next steps.** Per failure, give a concrete fix suggestion:
+
+- **Schema breaking**: bump to a new output port version (`models/output_ports/v2/`), keep v1 alive, add a deprecation note in `<id>.odps.yaml`.
+- **Quality breaking**: SQL snippet to find the offending rows so the user can decide whether to clean, accept, or relax the rule.
+- **Additive**: bump the contract's `version` minor, no consumer impact.
+- If no failures, recommend the version bump (patch for cosmetic, minor for additive, major for breaking even when the test happened to pass).
 
 **Do not auto-bump the contract version, do not create v2/ directories, and do not modify dbt models.** Surface the recommendation; let the user decide.
 
