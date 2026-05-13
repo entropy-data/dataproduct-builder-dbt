@@ -24,11 +24,12 @@ Before running Step 0, print this plan to the user verbatim:
 > Running **dataproduct-implement**. I'll:
 > 1. Pre-checks: confirm this is a dbt project, the `dbt` CLI is installed, and the `entropy-data` CLI is connected.
 > 2. Resolve the data product by id or URL (`entropy-data dataproducts get`).
-> 3. Fetch each selected output port's data contract (`entropy-data datacontracts get`).
-> 4. Translate the ODCS schema into dbt models under `models/output_ports/v1/` (column list, types, tests).
-> 5. Implement the dbt model bodies: declare input ports as dbt sources and write the `select` from input ports to output columns (with confirmation; complex joins left as TODOs).
-> 6. Hand off to `entropy-data-sync` to add any missing publishing artifacts (ODPS, OpenLineage, GitHub Actions).
-> 7. Summarize what was generated and the open TODOs.
+> 3. Stamp the data product on Entropy Data with the `dataProductBuilder` customProperty so the platform knows it is managed by this builder.
+> 4. Fetch each selected output port's data contract (`entropy-data datacontracts get`).
+> 5. Translate the ODCS schema into dbt models under `models/output_ports/v1/` (column list, types, tests).
+> 6. Implement the dbt model bodies: declare input ports as dbt sources and write the `select` from input ports to output columns (with confirmation; complex joins left as TODOs).
+> 7. Hand off to `entropy-data-sync` to add any missing publishing artifacts (ODPS, OpenLineage, GitHub Actions).
+> 8. Summarize what was generated and the open TODOs.
 
 Then proceed.
 
@@ -51,6 +52,24 @@ Run `entropy-data dataproducts get <id> -o json`. Remember the response as `DATA
 - the list of output ports — each has an id, a server (catalog/schema/table), and a linked data contract id
 
 If the data product has more than one output port, ask the user which one(s) to implement in this run. Default to all.
+
+### Step 1b — Stamp the data product as builder-managed
+
+Check `DATA_PRODUCT.customProperties` for an entry with `property: "dataProductBuilder"` and `value: "https://github.com/entropy-data/dataproduct-builder-dbt"`. If it is already there, skip this step.
+
+If missing, update the data product on Entropy Data so the platform records that it is managed by this builder. Do **not** rebuild the ODPS from a template — preserve every other field as fetched in Step 1.
+
+1. Save the fetched data product to a temp file as YAML: `entropy-data dataproducts get <DATA_PRODUCT_ID> -o yaml > /tmp/<DATA_PRODUCT_ID>.odps.yaml`.
+2. Append to the top-level `customProperties` list (create the list if absent):
+   ```yaml
+   customProperties:
+     - property: "dataProductBuilder"
+       value: "https://github.com/entropy-data/dataproduct-builder-dbt"
+   ```
+3. Push the patched file back: `entropy-data dataproducts put <DATA_PRODUCT_ID> --file /tmp/<DATA_PRODUCT_ID>.odps.yaml`.
+4. Delete the temp file.
+
+Forks of this plugin should substitute their own builder URL.
 
 ### Step 2 — Fetch the data contracts
 
@@ -128,6 +147,7 @@ End with this two-part recap. Use the same `Status` enum the other skills use: `
 | Artifact | Status | Details |
 |---|---|---|
 | Data product | already present | `<DATA_PRODUCT_ID>` — fetched from platform |
+| `dataProductBuilder` customProperty | … | "added — pushed to Entropy Data" / "already present" |
 | Data contract `<CONTRACT_ID>` | … | written to `datacontracts/<contract_id>.odcs.yaml` |
 | Input port sources | … | `models/input_ports/<provider-output-port-id>.source.yaml` — `<N>` files written (one per active access agreement) / skipped |
 | Model `<table>.sql` | … | `models/output_ports/v1/<table>.sql` — "wired to `<source>`" / "join TODO" / "skipped per user" |
