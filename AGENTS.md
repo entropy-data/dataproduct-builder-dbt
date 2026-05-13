@@ -14,6 +14,7 @@ When a user request matches a skill's trigger, **read the corresponding `SKILL.m
 | Auditing an existing dbt project against the Entropy Data layout and adding what's missing (ODPS, ODCS, OpenLineage, GitHub Actions, git connections) | `skills/entropy-data-sync/SKILL.md` |
 | Implementing a data product from a published Entropy Data URL or id — derive dbt output-port models from the ODCS schema | `skills/dataproduct-implement/SKILL.md` |
 | Editing a data contract (`datacontracts/*.odcs.yaml`) and testing whether the change is breaking | `skills/datacontract-edit/SKILL.md` |
+| Testing existing data contracts against the live warehouse (no edits — just run `datacontract test`) | `skills/datacontract-test/SKILL.md` |
 | Uploading example / sample rows for a data product to Entropy Data | `skills/dataproduct-exampledata-upload/SKILL.md` |
 | Listing teams in Entropy Data (e.g. to pick `TEAM_NAME` as the data product owner) | `skills/entropy-data-teams/SKILL.md` |
 

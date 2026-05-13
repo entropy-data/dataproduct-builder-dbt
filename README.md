@@ -4,12 +4,13 @@ A coding-agent plugin that helps you build data products with [dbt](https://www.
 
 ## Skills
 
-The plugin ships six skills:
+The plugin ships seven skills:
 
 - **[dataproduct-bootstrap](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/dataproduct-bootstrap/SKILL.md)** — scaffolds a brand-new dbt data product from scratch (greenfield): `dbt_project.yml`, model layout, README with `uv` install instructions, `profiles.yml.example` for the chosen warehouse, then hands off to the sync skill.
 - **[entropy-data-sync](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/entropy-data-sync/SKILL.md)** — audits an existing dbt project against the Entropy Data reference layout (`<id>.odps.yaml`, `datacontracts/`, `openlineage.yml`, `models/{input_ports,staging,intermediate,output_ports}`, GitHub Actions workflow, git connections) and adds anything that is missing.
 - **[dataproduct-implement](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/dataproduct-implement/SKILL.md)** — given an Entropy Data data product URL or id, fetches its data contracts and translates the ODCS schema into dbt models under `models/output_ports/v1/` (column list, types, tests). SQL bodies are left as TODOs — no invented business logic.
 - **[datacontract-edit](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/datacontract-edit/SKILL.md)** — edits a `datacontracts/*.odcs.yaml`, runs `datacontract test` against the live server, and classifies each failure as breaking-schema, breaking-quality, additive, or unrelated, with concrete fix suggestions.
+- **[datacontract-test](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/datacontract-test/SKILL.md)** — runs `datacontract test` against one or more ODCS contracts under `datacontracts/` to verify the live data still matches the schema and quality rules. No edits — reproduces what CI runs locally, with `--logs` for per-rule failure detail.
 - **[dataproduct-exampledata-upload](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/dataproduct-exampledata-upload/SKILL.md)** — extracts ~20 sample rows via a non-prod dbt profile, drops PII columns flagged in the contract (and obvious name-based PII), and uploads the scrubbed sample with `entropy-data example-data put`. Two explicit user confirmations before anything leaves the machine.
 - **[entropy-data-teams](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/entropy-data-teams/SKILL.md)** — lists the teams configured in Entropy Data so the user can pick a `TEAM_NAME` (used as the data product owner). Read-only; invoked by the bootstrap and sync skills when the user does not already know the team id.
 
