@@ -1,10 +1,18 @@
 version: 2
 
-# Declare external sources you read from. Example:
+# Declare external sources you read from in per-agreement files alongside
+# this one, named after the provider output port id:
 #
+#   models/input_ports/<provider-output-port-id>.source.yaml
+#
+# Each file holds a single `sources:` entry corresponding to one active
+# access agreement (run `entropy-data access list --consumer-dataproduct
+# <DATA_PRODUCT_ID> -o json` to list them). Example:
+#
+# version: 2
 # sources:
-#   - name: operational_db
-#     schema: public
+#   - name: <provider-data-product-id>
+#     database: <catalog>
+#     schema: <schema>
 #     tables:
-#       - name: organizations
-#       - name: members
+#       - name: <provider-output-port-id>

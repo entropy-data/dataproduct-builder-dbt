@@ -43,7 +43,7 @@ Before running Step 1, print this plan to the user verbatim:
 > 1. Pre-checks: confirm the working directory is empty (greenfield only).
 > 2. Gather parameters from you in one batched question (data product id, team, platform, catalog/schema, table).
 > 3. Pick the dbt adapter and profile block for the chosen platform.
-> 4. Scaffold the dbt project (`dbt_project.yml`, `profiles.yml.example`, model layout, README, `.gitignore`).
+> 4. Scaffold the dbt project (`dbt_project.yml`, `profiles.yml.example`, model layout, README, `.gitignore`), and check whether the user's existing `~/.dbt/profiles.yml` would collide with the new profile.
 > 5. Hand off to `entropy-data-sync` for the publishing layer (ODPS, ODCS, OpenLineage, GitHub Actions).
 > 6. Summarize what was scaffolded and the next manual steps.
 
@@ -101,6 +101,16 @@ Templates are at `${PLUGIN_ROOT}/skills/dataproduct-bootstrap/templates/`. Copy 
 
 Also create empty directories `analyses/`, `macros/`, `seeds/`, `snapshots/`, `tests/`. If a directory cannot be empty in git, drop a single `.gitkeep` file.
 
+#### Check the user's existing `~/.dbt/profiles.yml`
+
+After scaffolding, run a read-only check against `~/.dbt/profiles.yml` (it likely already exists if the user works on other dbt projects). Do **not** modify it. Record one of three outcomes — Step 6 uses this to pick the right next-steps bullet and table entry.
+
+- **missing** — file does not exist. User can copy `profiles.yml.example` as-is.
+- **exists, no collision** — file exists but does not define a top-level key `<DBT_PROJECT_NAME>:`. User must merge the new profile block into it.
+- **exists, collision** — file exists and already defines `<DBT_PROJECT_NAME>:`. Flag prominently; user must reconcile (rename this project, replace the existing block, or confirm it already points at the right warehouse).
+
+Check with `test -f ~/.dbt/profiles.yml` for existence and `grep -nE '^<DBT_PROJECT_NAME>:' ~/.dbt/profiles.yml` for the collision. Top-level YAML keys only — do not match nested occurrences.
+
 ### Step 5 — Hand off to entropy-data-sync
 
 Now the dbt skeleton is in place. Invoke the **entropy-data-sync** skill (in this same plugin) to add ODPS, ODCS, OpenLineage transport, and the GitHub Actions workflow.
@@ -123,12 +133,16 @@ After both skills have run, end with this two-part recap. Use the same `Status` 
 | `.gitignore` | … | new or merged into existing |
 | Model layout | … | `models/{input_ports,staging,intermediate,output_ports/v1}/` + `_models.yml` placeholders |
 | Empty dbt dirs | … | `analyses/`, `macros/`, `seeds/`, `snapshots/`, `tests/` |
+| `~/.dbt/profiles.yml` (local) | `deferred` | one of: `missing`, `exists – merge required`, or `collision: <DBT_PROJECT_NAME> already defined` |
 | `entropy-data-sync` handoff | … | "ran" / "skipped" — see sync's own report for ODPS/ODCS/OpenLineage/workflow rows |
 
 **Part 2 — next steps.** Bullet list, include only what applies:
 
 - `uv venv && source .venv/bin/activate && uv pip install dbt-core <DBT_ADAPTER> openlineage-dbt datacontract-cli entropy-data`
-- Copy `profiles.yml.example` to `~/.dbt/profiles.yml` and fill in credentials.
+- Wire up `~/.dbt/profiles.yml` (pick the bullet that matches the Step 4 check):
+  - **missing** → `cp profiles.yml.example ~/.dbt/profiles.yml`, then fill in credentials.
+  - **exists, no collision** → append the `<DBT_PROJECT_NAME>:` block from `profiles.yml.example` to `~/.dbt/profiles.yml`, then fill in credentials.
+  - **exists, collision** → `<DBT_PROJECT_NAME>:` is already defined in `~/.dbt/profiles.yml`. Reconcile manually: rename this project, replace the existing block, or confirm it already points at the right warehouse.
 - `git init && git add . && git commit -m "Initial commit"` (if the directory is not already a git repo).
 - Create a GitHub repo and push; set the secrets called out by the sync skill (`ENTROPY_DATA_API_KEY`, platform creds).
 - Fill in the data contract schema in `datacontracts/<CONTRACT_FILE>`.

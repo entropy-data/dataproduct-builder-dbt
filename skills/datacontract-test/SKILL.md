@@ -84,6 +84,193 @@ End with this two-part recap. Use the shared `Status` enum (`created`, `updated`
 
 If everything passed, write a single line: `All <N> contracts pass against <server>.`
 
+## Authentication examples by server type
+
+The Data Contract CLI reads credentials from environment variables, not from the contract file. Only the connection topology (host, database, schema, etc.) belongs in the `servers` block. The examples below cover the most common warehouses. Other types (Oracle, MySQL, Trino, DuckDB, Kafka, ...) follow the same pattern; see the [Data Contract CLI README](https://github.com/datacontract/datacontract-cli) for the full list.
+
+### Snowflake
+
+ODCS server block:
+
+```yaml
+servers:
+  production:
+    type: snowflake
+    account: abcdefg-xn12345
+    database: ORDER_DB
+    schema: ORDERS_PII_V2
+```
+
+Any env var prefixed `DATACONTRACT_SNOWFLAKE_` is forwarded to the Snowflake connector with the prefix stripped and the rest lowercased, so you can pass any Snowflake/Soda parameter this way. Three auth modes:
+
+**Password auth**
+```bash
+export DATACONTRACT_SNOWFLAKE_USERNAME=...
+export DATACONTRACT_SNOWFLAKE_PASSWORD=...
+export DATACONTRACT_SNOWFLAKE_WAREHOUSE=COMPUTE_WH
+export DATACONTRACT_SNOWFLAKE_ROLE=DATA_CONTRACT_TEST
+```
+
+**Private key (JWT) auth** — used for service accounts and CI:
+```bash
+export DATACONTRACT_SNOWFLAKE_USERNAME=SVC_DATACONTRACT
+export DATACONTRACT_SNOWFLAKE_AUTHENTICATOR=SNOWFLAKE_JWT
+export DATACONTRACT_SNOWFLAKE_PRIVATE_KEY_PATH=/secrets/snowflake_rsa.p8
+# Only if the key is encrypted:
+export DATACONTRACT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=...
+export DATACONTRACT_SNOWFLAKE_WAREHOUSE=COMPUTE_WH
+export DATACONTRACT_SNOWFLAKE_ROLE=DATA_CONTRACT_TEST
+```
+
+**External browser SSO** — interactive, for local runs against an IdP-backed account:
+```bash
+export DATACONTRACT_SNOWFLAKE_USERNAME=jane.doe@example.com
+export DATACONTRACT_SNOWFLAKE_AUTHENTICATOR=externalbrowser
+export DATACONTRACT_SNOWFLAKE_WAREHOUSE=COMPUTE_WH
+export DATACONTRACT_SNOWFLAKE_ROLE=DATA_CONTRACT_TEST
+```
+
+Not usable in CI — it opens a browser window.
+
+### Databricks
+
+ODCS server block:
+
+```yaml
+servers:
+  production:
+    type: databricks
+    host: adb-1234567890.7.azuredatabricks.net   # optional, can also come from env
+    catalog: acme_catalog_prod
+    schema: orders_latest
+```
+
+Env vars:
+```bash
+export DATACONTRACT_DATABRICKS_TOKEN=dapi...               # required
+export DATACONTRACT_DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/abc123def456
+export DATACONTRACT_DATABRICKS_SERVER_HOSTNAME=adb-...     # only needed if `host` is not in the server block
+```
+
+The token is a Databricks personal access token or service-principal OAuth token. Read access on the catalog + schema is enough.
+
+### Postgres
+
+ODCS server block:
+
+```yaml
+servers:
+  production:
+    type: postgres
+    host: db.example.internal
+    port: 5432
+    database: analytics
+    schema: public
+```
+
+Env vars:
+```bash
+export DATACONTRACT_POSTGRES_USERNAME=datacontract_ro
+export DATACONTRACT_POSTGRES_PASSWORD=...
+```
+
+Both are required. Use a read-only role.
+
+### Amazon Athena
+
+ODCS server block:
+
+```yaml
+servers:
+  production:
+    type: athena
+    catalog: awsdatacatalog           # optional, default is awsdatacatalog
+    schema: orders_db
+    regionName: eu-central-1
+    stagingDir: s3://acme-athena-results/datacontract/
+```
+
+Env vars:
+```bash
+export DATACONTRACT_S3_ACCESS_KEY_ID=AKIA...          # required
+export DATACONTRACT_S3_SECRET_ACCESS_KEY=...          # required
+export DATACONTRACT_S3_REGION=eu-central-1            # optional, overrides regionName
+export DATACONTRACT_S3_SESSION_TOKEN=...              # optional, for STS temporary creds
+```
+
+The IAM principal needs `athena:*` on the workgroup, `glue:Get*` on the catalog, and read/write on the `stagingDir` bucket prefix.
+
+### BigQuery
+
+ODCS server block:
+
+```yaml
+servers:
+  production:
+    type: bigquery
+    project: acme-data-prod
+    dataset: orders
+```
+
+Two auth modes:
+
+**Service account key file**
+```bash
+export DATACONTRACT_BIGQUERY_ACCOUNT_INFO_JSON_PATH=/secrets/bq-sa.json
+```
+
+**Application Default Credentials (ADC)** — no env vars needed. Used automatically when `DATACONTRACT_BIGQUERY_ACCOUNT_INFO_JSON_PATH` is unset. Works with `gcloud auth application-default login` for local runs and with Workload Identity Federation in CI.
+
+Optional impersonation:
+```bash
+export DATACONTRACT_BIGQUERY_IMPERSONATION_ACCOUNT=datacontract@acme-data-prod.iam.gserviceaccount.com
+```
+
+The principal needs `bigquery.dataViewer` on the dataset and `bigquery.jobUser` on the project.
+
+### Microsoft Fabric (SQL Server protocol)
+
+Fabric Warehouse and Lakehouse SQL endpoints speak the SQL Server wire protocol, so use `type: sqlserver`.
+
+ODCS server block:
+
+```yaml
+servers:
+  production:
+    type: sqlserver
+    host: abc123def.datawarehouse.fabric.microsoft.com
+    port: 1433
+    database: orders_wh
+    schema: dbo
+    driver: ODBC Driver 18 for SQL Server
+```
+
+Fabric only accepts Entra ID (Azure AD) auth, not SQL logins. Pick one of:
+
+**Service principal** — for CI:
+```bash
+export DATACONTRACT_SQLSERVER_AUTHENTICATION=ActiveDirectoryServicePrincipal
+export DATACONTRACT_SQLSERVER_CLIENT_ID=<app-registration-client-id>
+export DATACONTRACT_SQLSERVER_CLIENT_SECRET=<client-secret>
+```
+
+**User password** — Entra ID username + password (no MFA):
+```bash
+export DATACONTRACT_SQLSERVER_AUTHENTICATION=ActiveDirectoryPassword
+export DATACONTRACT_SQLSERVER_USERNAME=jane.doe@acme.com
+export DATACONTRACT_SQLSERVER_PASSWORD=...
+```
+
+**Interactive** — opens a browser, for local dev only:
+```bash
+export DATACONTRACT_SQLSERVER_AUTHENTICATION=ActiveDirectoryInteractive
+export DATACONTRACT_SQLSERVER_USERNAME=jane.doe@acme.com
+```
+
+The same env vars work for a regular on-prem SQL Server; switch `DATACONTRACT_SQLSERVER_AUTHENTICATION=sql` and supply `DATACONTRACT_SQLSERVER_USERNAME` / `DATACONTRACT_SQLSERVER_PASSWORD`.
+
+Install ODBC Driver 18 locally (`brew install msodbcsql18` on macOS, `apt-get install msodbcsql18` on Debian/Ubuntu) before running.
+
 ## Constraints
 
 - **Read-only against the warehouse.** This skill runs `datacontract test` which executes `SELECT` queries; it never writes. Do not invoke `datacontract publish`, `datacontract export`, or `entropy-data datacontracts put` from this skill.

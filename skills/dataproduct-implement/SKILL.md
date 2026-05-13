@@ -65,7 +65,7 @@ For each selected output port, run `entropy-data datacontracts get <contract-id>
 For each contract:
 
 1. Decide a dbt-side table name. Default: the `models` key in the contract. Confirm with the user if it differs from the output-port server's table name.
-2. **Identify candidate input ports.** Run `entropy-data access list -o json` and filter to agreements where `DATA_PRODUCT_ID` is the consumer — those provider data products are the input ports this product can actually read. Only fall back to a broader `entropy-data search query` if the user asks. If `models/input_ports/` already has matching tables, prefer those.
+2. **Identify candidate input ports.** Run `entropy-data access list --consumer-dataproduct <DATA_PRODUCT_ID> -o json` to list the access agreements where this product is the consumer. Each entry's `provider.dataProductId` / `provider.outputPortId` is an input port this product can read. Keep only agreements with `info.active: true` (status `approved`); ignore `pending` / `rejected`. Only fall back to a broader `entropy-data search query` if the user explicitly asks. If `models/input_ports/<provider-output-port-id>.source.yaml` already exists for an agreement, treat it as authoritative and skip recreating it.
 3. Generate `models/output_ports/v1/<table>.sql` — a stub `select` that lists the contract columns explicitly with `cast(... as <warehouse-type>) as <column>`. **Leave the `from` clause as a TODO** with a comment listing the candidate input ports from the previous step; do not invent business logic.
 4. Append the column list to `models/output_ports/v1/_models.yml` under `models:` — name, description (from contract), and tests derived from the contract: `not_null` for `required: true`, `unique` for `unique: true`, `accepted_values` if the contract defines an enum.
 5. Map ODCS types to the warehouse dialect:
@@ -87,13 +87,28 @@ Ask the user: "Want me to wire the output-port models to the input ports, or lea
 
 For each output port table:
 
-1. **Declare each candidate input port as a dbt source.** For every provider data product / output port the consumer has access to (from Step 3.2), fetch its contract (`entropy-data datacontracts get <contract-id> -o json`) so you know its server location and columns. Add a `sources:` entry under `models/input_ports/_models.yml`:
-   - `name`: the provider's data product id (or output port id if multiple ports come from the same product)
-   - `schema` / `database`: from the provider output port's `server.schema` / `server.catalog`
-   - `tables`: one entry per output port table, with `description` and `columns` populated from the input contract
+1. **Declare each candidate input port as a dbt source — one file per agreement.** For every agreement from Step 3.2, fetch the provider data product (`entropy-data dataproducts get <provider-data-product-id> -o json`) to resolve the output port's `server` (catalog/schema/table) and linked contract id, then fetch the contract (`entropy-data datacontracts get <contract-id> -o json`) for columns. Write one file per agreement at `models/input_ports/<provider-output-port-id>.source.yaml`:
+
+   ```yaml
+   version: 2
+   sources:
+     - name: <provider-data-product-id>
+       database: <output port server.catalog>
+       schema: <output port server.schema>
+       tables:
+         - name: <provider-output-port-id>
+           description: <from contract>
+           identifier: <output port server.table>   # only if it differs from the source-table name
+           columns:
+             - name: <col>
+               description: <from contract>
+               data_type: <warehouse type from the type map below>
+   ```
+
+   One file per agreement. Do not merge multiple agreements into a single file — each access grant should be independently visible in `git log` and easy to remove when revoked. If a file already exists for the same `<provider-output-port-id>`, surface the diff and ask before overwriting.
 2. **Match input columns to output columns.** Build a column-by-column map: for each output column in the contract, find the input column with the same name (or an obvious synonym, e.g. `customer_id` ↔ `account_id` only if the input contract's `description` makes it explicit). Don't guess — if no clear match, leave that column as a `null as <col>` placeholder with a `-- TODO: derive from ...` comment.
 3. **Write the SQL body.**
-   - **Single input source, columns match 1:1** → replace the TODO `from` with `from {{ source('<provider-id>', '<table>') }}` and project each output column with `cast(<input_col> as <warehouse_type>) as <output_col>`.
+   - **Single input source, columns match 1:1** → replace the TODO `from` with `from {{ source('<provider-data-product-id>', '<provider-output-port-id>') }}` (matching the `sources[].name` and `tables[].name` of the source file written in step 4.1) and project each output column with `cast(<input_col> as <warehouse_type>) as <output_col>`.
    - **Multiple input sources** → leave the join logic as an inline TODO listing each candidate `{{ source(...) }}` reference and the join keys the user will need to confirm. Do not invent join predicates.
    - **Derived / aggregated columns** (sums, ratios, windows implied by the contract description but not present in any input) → leave as `null as <col>` with a `-- TODO: compute <description from contract>` comment.
 4. **Compile to verify.** Run `dbt parse` (cheap, no warehouse roundtrip) to catch syntax errors and unknown source references. If it fails, fix the generated SQL before continuing. Do not run `dbt run` — that touches the warehouse and is the user's call.
@@ -114,7 +129,7 @@ End with this two-part recap. Use the same `Status` enum the other skills use: `
 |---|---|---|
 | Data product | already present | `<DATA_PRODUCT_ID>` — fetched from platform |
 | Data contract `<CONTRACT_ID>` | … | written to `datacontracts/<contract_id>.odcs.yaml` |
-| Input port sources | … | `models/input_ports/_models.yml` — `<N>` sources declared / skipped |
+| Input port sources | … | `models/input_ports/<provider-output-port-id>.source.yaml` — `<N>` files written (one per active access agreement) / skipped |
 | Model `<table>.sql` | … | `models/output_ports/v1/<table>.sql` — "wired to `<source>`" / "join TODO" / "skipped per user" |
 | `_models.yml` entry for `<table>` | … | tests derived from the contract |
 | `dbt parse` | … | "passed" / "failed: <reason>" / "skipped" |
