@@ -111,5 +111,5 @@ For the four "bucket" rows, leave `Status = —` and put the failure count + a o
 
 - **Always run the test after every edit.** A passing edit looks the same as a breaking edit until you run it.
 - **Don't edit the dbt models in this skill.** Changing the contract is a separate decision from changing the implementation. If the user wants both, run `dataproduct-implement` after this skill.
-- **Don't fetch a remote version of the contract** — operate on the local file. If the user wants to pull the published version, ask them to do that explicitly first (it can be a one-line `entropy-data datacontracts get <id> -o json` redirected to the file).
+- **Don't fetch a remote version of the contract** — operate on the local file. If the user wants to pull the published version, ask them to do that explicitly first (it can be a one-line `entropy-data datacontracts get <id> -o yaml` redirected to the file).
 - **Idempotent**: re-running with the same edit should be a no-op (same diff = empty, same test = same result).

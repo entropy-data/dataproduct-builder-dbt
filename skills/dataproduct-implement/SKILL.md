@@ -46,12 +46,14 @@ Accept either:
 - a full URL (e.g. `https://app.entropy-data.com/dataproducts/<id>`) — extract the trailing id, **or**
 - a bare data product id.
 
-Run `entropy-data dataproducts get <id> -o json`. Remember the response as `DATA_PRODUCT`. Extract:
+Run `entropy-data dataproducts get <id> -o yaml`. Remember the response as `DATA_PRODUCT`. Extract:
 
 - `DATA_PRODUCT_ID`, `DATA_PRODUCT_NAME`, owning team, purpose
 - the list of output ports — each has an id, a server (catalog/schema/table), and a linked data contract id
 
 If the data product has more than one output port, ask the user which one(s) to implement in this run. Default to all.
+
+If the data product does not exist in Entropy Data, ask the user if they want to create a new one.
 
 ### Step 1b — Stamp the data product as builder-managed
 
@@ -106,7 +108,7 @@ Ask the user: "Want me to wire the output-port models to the input ports, or lea
 
 For each output port table:
 
-1. **Declare each candidate input port as a dbt source — one file per agreement.** For every agreement from Step 3.2, fetch the provider data product (`entropy-data dataproducts get <provider-data-product-id> -o json`) to resolve the output port's `server` (catalog/schema/table) and linked contract id, then fetch the contract (`entropy-data datacontracts get <contract-id> -o json`) for columns. Write one file per agreement at `models/input_ports/<provider-output-port-id>.source.yaml`:
+1. **Declare each candidate input port as a dbt source — one file per agreement.** For every agreement from Step 3.2, fetch the provider data product (`entropy-data dataproducts get <provider-data-product-id> -o yaml`) to resolve the output port's `server` (catalog/schema/table) and linked contract id, then fetch the contract (`entropy-data datacontracts get <contract-id> -o yaml`) for columns. Write one file per agreement at `models/input_ports/<provider-output-port-id>.source.yaml`:
 
    ```yaml
    version: 2
