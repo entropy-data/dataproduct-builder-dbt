@@ -11,8 +11,11 @@ version: 2
 #
 # version: 2
 # sources:
-#   - name: <provider-data-product-id>
+#   - name: <provider-data-product-id>_<provider-output-port-id>
 #     database: <catalog>
 #     schema: <schema>
+#     meta:
+#       data_contract:
+#         id: <provider-contract-id>   # provider's contract is not stored in this repo; id only
 #     tables:
-#       - name: <provider-output-port-id>
+#       - name: <table>   # from the contract's `models:` key

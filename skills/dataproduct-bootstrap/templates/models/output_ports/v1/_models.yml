@@ -2,6 +2,13 @@ version: 2
 
 # Published output port tables (governed by datacontracts/<contract>.odcs.yaml).
 # One model per output port. The model name should match the output port table name.
+# Each model carries a `meta.data_contract` reference so tooling (dbt-docs,
+# lineage, `dbt list --select config.meta.data_contract.id:<id>`) can link the
+# model back to the ODCS file that governs its schema.
 # models:
 #   - name: {{TABLE}}
 #     description: {{PURPOSE}}
+#     meta:
+#       data_contract:
+#         id: {{CONTRACT_ID}}
+#         file: datacontracts/{{CONTRACT_FILE}}
