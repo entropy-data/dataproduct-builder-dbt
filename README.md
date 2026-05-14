@@ -1,24 +1,25 @@
 # dataproduct-builder-dbt
 
-A coding-agent plugin and skills that helps you implement data products with [dbt](https://www.getdbt.com/), compliant to your organization's conventions, and fully integrated with [Entropy Data](https://entropy-data.com).
+Skills for your favorite coding agent that helps you implement data products with [dbt](https://www.getdbt.com/), compliant to your organization's conventions, and fully integrated with [Entropy Data](https://entropy-data.com).
 
-It also supports a contract-driven approach: specify your requirements as a data contract, and the builder implements the data product in minutes.
+It also supports a contract-driven approach: specify your requirements as a [data contract](https://datacontract.com), and the builder implements the data product in minutes.
 
 ## Skills
 
 The plugin ships seven skills:
 
 - **[dataproduct-bootstrap](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/dataproduct-bootstrap/SKILL.md)** — scaffolds a brand-new dbt data product from scratch (greenfield): `dbt_project.yml`, model layout, README with `uv` install instructions, `profiles.yml.example` for the chosen warehouse, then hands off to the sync skill.
-- **[entropy-data-sync](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/entropy-data-sync/SKILL.md)** — audits an existing dbt project against the Entropy Data reference layout (`<id>.odps.yaml`, `datacontracts/`, `openlineage.yml`, `models/{input_ports,staging,intermediate,output_ports}`, GitHub Actions workflow, git connections) and adds anything that is missing.
 - **[dataproduct-implement](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/dataproduct-implement/SKILL.md)** — given an Entropy Data data product URL or id, fetches its data contracts and translates the ODCS schema into dbt models under `models/output_ports/v1/` (column list, types, tests). SQL bodies are left as TODOs — no invented business logic.
+- **[dataproduct-exampledata-upload](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/dataproduct-exampledata-upload/SKILL.md)** — extracts ~20 sample rows via a non-prod dbt profile, drops PII columns flagged in the contract (and obvious name-based PII), and uploads the scrubbed sample with `entropy-data example-data put`. Two explicit user confirmations before anything leaves the machine.
 - **[datacontract-edit](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/datacontract-edit/SKILL.md)** — edits a `datacontracts/*.odcs.yaml`, runs `datacontract test` against the live server, and classifies each failure as breaking-schema, breaking-quality, additive, or unrelated, with concrete fix suggestions.
 - **[datacontract-test](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/datacontract-test/SKILL.md)** — runs `datacontract test` against one or more ODCS contracts under `datacontracts/` to verify the live data still matches the schema and quality rules. No edits — reproduces what CI runs locally, with `--logs` for per-rule failure detail.
-- **[dataproduct-exampledata-upload](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/dataproduct-exampledata-upload/SKILL.md)** — extracts ~20 sample rows via a non-prod dbt profile, drops PII columns flagged in the contract (and obvious name-based PII), and uploads the scrubbed sample with `entropy-data example-data put`. Two explicit user confirmations before anything leaves the machine.
+- **[entropy-data-sync](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/entropy-data-sync/SKILL.md)** — audits an existing dbt project against the Entropy Data reference layout (`<id>.odps.yaml`, `datacontracts/`, `openlineage.yml`, `models/{input_ports,staging,intermediate,output_ports}`, GitHub Actions workflow, git connections) and adds anything that is missing.
 - **[entropy-data-teams](https://github.com/entropy-data/dataproduct-builder-dbt/blob/main/skills/entropy-data-teams/SKILL.md)** — lists the teams configured in Entropy Data so the user can pick a `TEAM_NAME` (used as the data product owner). Read-only; invoked by the bootstrap and sync skills when the user does not already know the team id.
 
 ## Install
 
 The skills are plain markdown, any coding agent that can read instruction files can run them. 
+
 For major coding agents, those can be installed as a plugin:
 
 ### Claude Code
@@ -58,14 +59,14 @@ Alternatively, copy the `skills` to the directory that your coding agent expects
 
 The skills authenticate against Entropy Data through a connection registered with the [entropy-data CLI](https://github.com/entropy-data/entropy-data-cli) (requires [uv](https://docs.astral.sh/uv/)).
 
-Create a user-scoped key in the Entropy Data web UI (**Organization Settings → API Keys → Create new API key**, scope `User (personal token)`), install the CLI, and register the connection:
+Create a user-scoped key in the Entropy Data web UI (**Organization Settings → API Keys → Create new API key**, scope `User (personal token)`) and add the connection:
 
 ```
 uv tool install --upgrade entropy-data
 entropy-data connection add default --api-key <your-api-key> --host <your-entropy-data-host>
 ```
 
-For CI workflows, register a connection with a team-scoped or organization-scoped API key.
+For CI workflows, add a connection with a team-scoped or organization-scoped API key.
 
 
 ## Use
@@ -84,8 +85,8 @@ Organizations with their own data-product stack and naming conventions are encou
 
 Common extension points:
 
-- **Templates** under [`skills/dataproduct-bootstrap/templates/`](skills/dataproduct-bootstrap/templates/) and [`skills/entropy-data-sync/templates/`](skills/entropy-data-sync/templates/) — these ship the ODPS, ODCS, OpenLineage transport, GitHub Actions workflow, and dbt project skeleton that the bootstrap and sync skills install. Replace any of them to match your conventions (e.g. swap GitHub Actions for GitLab CI, change the model layer naming, embed company-specific tags).
-- **Skills** — add your own `skills/<name>/SKILL.md` for organization-specific flows: internal data-quality checks, governance approvals, downstream sync to your data catalog, etc. Update `AGENTS.md` and `.github/copilot-instructions.md` so the routing tables surface them.
+- **Templates** under [`skills/dataproduct-bootstrap/templates/`](skills/dataproduct-bootstrap/templates/) and [`skills/entropy-data-sync/templates/`](skills/entropy-data-sync/templates/) — these ship the ODPS, ODCS, OpenLineage transport, GitHub Actions workflow, and dbt project skeleton that the bootstrap and sync skills install. Replace any of them to match your conventions (e.g. swap GitHub Actions for Airflow, change the model layer naming, embed company-specific tags).
+- **Skills** — add your own `skills/<name>/SKILL.md` for stack-specific flows: specific skills for your data platform, internal data-quality checks, governance approvals, downstream sync to your data catalog, etc. Update `AGENTS.md` and `.github/copilot-instructions.md` so the routing tables surface them.
 - **Hooks** — extend [`hooks/hooks.json`](hooks/hooks.json) with additional `PostToolUse` validators (e.g. an internal lint on `models/**/*.sql`, or a check that team names match your IdP).
 - **Subagents** — add subagents under `agents/` for specialist roles (e.g. a PII scanner tuned to your classification taxonomy, a contract-review specialist for your terms-of-use boilerplate).
 
