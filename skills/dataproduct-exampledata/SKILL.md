@@ -1,5 +1,5 @@
 ---
-name: dataproduct-exampledata-upload
+name: dataproduct-exampledata
 description: Extract a small sample of rows from a dbt output port using a non-production profile, scrub anything classified as PII or sensitive in the data contract, and upload the scrubbed sample to Entropy Data via the entropy-data CLI. Trigger when the user asks to "upload example data", "publish sample rows for the data product", or "give consumers a preview of the data".
 ---
 
@@ -15,7 +15,7 @@ Sample rows let prospective consumers evaluate a data product without requesting
 
 Before running Step 0, print this plan to the user verbatim:
 
-> Running **dataproduct-exampledata-upload**. I'll:
+> Running **dataproduct-exampledata**. I'll:
 > 1. Pre-checks: dbt project, ODCS files, `entropy-data` CLI, non-prod dbt target.
 > 2. Identify the output port and its contract.
 > 3. Build a scrub plan — drop PII/sensitive columns, hash IDs, drop free text. **Wait for your confirmation.**
