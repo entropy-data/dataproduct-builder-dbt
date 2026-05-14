@@ -2,6 +2,8 @@
 
 A coding-agent plugin and skills that helps you implement data products with [dbt](https://www.getdbt.com/), compliant to your organization's conventions, and fully integrated with [Entropy Data](https://entropy-data.com).
 
+It also supports a contract-driven approach: specify your requirements as a data contract, and the builder implements the data product in minutes.
+
 ## Skills
 
 The plugin ships seven skills:
@@ -70,11 +72,11 @@ For CI workflows, register a connection with a team-scoped or organization-scope
 
 Ask the agent:
 
-> Implement the data product <url or id or new name>.
+> Implement the data product *url or id or new name*.
 
 Or:
 
-> Add the property <name> to the data contract and find data products that we could use as input ports. Request access and implement the dbt pipeline.
+> Add the property *name* to the data contract and find data products that we could use as input ports. Request access and implement the dbt pipeline.
 
 ## Customization
 
