@@ -1,11 +1,13 @@
 ---
 name: datacontract-edit
-description: Edit an Open Data Contract Standard (ODCS) file in datacontracts/, run the contract test against the live data, and classify any failures as breaking or non-breaking changes — with suggested fixes. Trigger when the user asks to "add/remove/change a column in the data contract", "update the data contract", or "test contract changes".
+description: Edit an output-port ODCS file under models/output_ports/v<N>/, run the contract test against the live data, and classify any failures as breaking or non-breaking changes — with suggested fixes. Only edits output-port contracts (the spec this data product commits to); input-port contracts under models/input_ports/ are upstream's responsibility and refreshed by dataproduct-implement. Trigger when the user asks to "add/remove/change a column in the data contract", "update the data contract", or "test contract changes".
 ---
 
 # Edit a data contract and test the impact
 
-Change a `datacontracts/*.odcs.yaml` file, run the contract test, and tell the user whether the change breaks consumers.
+Change an output-port `models/output_ports/v<N>/*.odcs.yaml` file, run the contract test, and tell the user whether the change breaks consumers.
+
+This skill operates **only on output-port contracts** — the spec this data product commits to. Input-port contracts under `models/input_ports/` are cached snapshots of upstream's spec and are not editable here; if you want to refresh one (because upstream changed it), run `dataproduct-implement` instead.
 
 ## How to run this skill
 
@@ -16,7 +18,7 @@ Change a `datacontracts/*.odcs.yaml` file, run the contract test, and tell the u
 Before running Step 0, print this plan to the user verbatim:
 
 > Running **datacontract-edit**. I'll:
-> 1. Locate the contract file in `datacontracts/` that matches your request.
+> 1. Locate the output-port contract file under `models/output_ports/v<N>/` that matches your request.
 > 2. Apply the edit in place and show you a unified diff.
 > 3. Run `datacontract test` against the live server to check the change.
 > 4. Classify each failure as breaking-schema, breaking-quality, additive, or unrelated.
@@ -26,7 +28,8 @@ Then proceed.
 
 ### Step 0 — Locate the contract
 
-- If the user named a contract file or column, find the matching file under `datacontracts/`.
+- Search only `models/output_ports/**/*.odcs.yaml` — never `models/input_ports/`. If the user names an input-port contract, stop and explain it can't be edited here (refresh via `dataproduct-implement` instead).
+- If the user named a contract file or column, find the matching file under `models/output_ports/`.
 - If multiple contracts exist and it's ambiguous, list them and ask which one.
 - Read the file and remember the current `models` block as `BEFORE`.
 
@@ -52,7 +55,7 @@ After editing, remember the new `models` block as `AFTER` and show the user a un
 Run the test with the **`datacontract` CLI** against the local contract file:
 
 ```
-datacontract test datacontracts/<file>.odcs.yaml --server <server> --logs
+datacontract test models/output_ports/v<N>/<file>.odcs.yaml --server <server> --logs
 ```
 
 - If the contract has more than one server, ask which one (typically `production`). Default to `all` only if the user explicitly asks.
@@ -88,7 +91,7 @@ End with this two-part recap. The `Status` column uses the shared enum (`created
 
 | Artifact | Status | Details |
 |---|---|---|
-| Contract file | updated | `datacontracts/<file>.odcs.yaml` — show the unified diff inline |
+| Contract file | updated | `models/output_ports/v<N>/<file>.odcs.yaml` — show the unified diff inline |
 | Contract test | … | `pass`, `fail (<N> failures)`, or `not run (missing creds)` — name the server |
 | Breaking — schema | … | count of failures in this bucket, or "—" |
 | Breaking — quality | … | count of failures in this bucket, or "—" |

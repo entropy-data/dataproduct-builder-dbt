@@ -38,7 +38,7 @@ models/
 └── output_ports/v1/  # published tables — one per output port
 ```
 
-Output ports are versioned (`v1`, `v2`, ...). Schema is governed by the data contract in `datacontracts/`.
+Output ports are versioned (`v1`, `v2`, ...). Each version directory contains the SQL models plus the ODCS data contract that governs the schema (`<contract-id>.odcs.yaml`). Cached input-port contracts live in `models/input_ports/` next to their `.source.yaml`.
 
 ## Publishing
 

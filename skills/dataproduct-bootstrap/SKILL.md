@@ -29,7 +29,7 @@ After running, the directory contains:
 └── tests/         # empty
 ```
 
-It then invokes **entropy-data-sync** to add `<id>.odps.yaml`, `datacontracts/`, `openlineage.yml`, and `.github/workflows/data-product.yml`.
+It then invokes **entropy-data-sync** to add `<id>.odps.yaml`, the output-port contract under `models/output_ports/v1/<contract>.odcs.yaml`, `openlineage.yml`, and `.github/workflows/data-product.yml`.
 
 ## How to run this skill
 
@@ -145,7 +145,7 @@ After both skills have run, end with this two-part recap. Use the same `Status` 
   - **exists, collision** → `<DBT_PROJECT_NAME>:` is already defined in `~/.dbt/profiles.yml`. Reconcile manually: rename this project, replace the existing block, or confirm it already points at the right warehouse.
 - `git init && git add . && git commit -m "Initial commit"` (if the directory is not already a git repo).
 - Create a GitHub repo and push; set the secrets called out by the sync skill (`ENTROPY_DATA_API_KEY`, platform creds).
-- Fill in the data contract schema in `datacontracts/<CONTRACT_FILE>`.
+- Fill in the data contract schema in `models/output_ports/v1/<CONTRACT_FILE>`.
 - Any deferred items surfaced by the sync skill's report (e.g. git connections to register after first CI publish).
 
 If there is nothing in Part 2, write a single line: `No further action required.`

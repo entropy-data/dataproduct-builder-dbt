@@ -1,11 +1,16 @@
 ---
 name: datacontract-test
-description: Run the Data Contract CLI (`datacontract test`) against one or more ODCS contracts under `datacontracts/` to verify the live data still conforms — schema, quality rules, and freshness. Trigger when the user asks to "test the data contracts", "verify the data product matches its contract", "are we still contract-conformant", or "run the contract tests".
+description: Run the Data Contract CLI (`datacontract test`) against ODCS contracts in the project to verify the live data still conforms — schema, quality rules, and freshness. Handles two kinds of contracts with different semantics: output-port contracts under `models/output_ports/**/*.odcs.yaml` (tested against this project's warehouse — "am I still producing what I promised?") and input-port contracts under `models/input_ports/*.odcs.yaml` (tested against the upstream warehouse — "is upstream still producing what I trusted?"). Trigger when the user asks to "test the data contracts", "verify the data product matches its contract", "are we still contract-conformant", "check upstream drift", or "run the contract tests".
 ---
 
 # Test ODCS data contracts against the live server
 
-Run the **Data Contract CLI** (`datacontract test`) against contracts in `datacontracts/` to check whether the data currently produced by the warehouse still matches the schema and quality rules declared in the contract.
+Run the **Data Contract CLI** (`datacontract test`) against contracts in the project to check whether the data currently produced by a warehouse still matches the schema and quality rules declared in the contract.
+
+Two kinds of contracts live in this project and they test against different warehouses:
+
+- **Output-port contracts** at `models/output_ports/v<N>/*.odcs.yaml` — what this data product commits to produce. They test against **this project's** warehouse. A failure means we are no longer producing what we promised.
+- **Input-port contracts** at `models/input_ports/*.odcs.yaml` — cached snapshots of what we trust upstream to produce. They test against the **upstream provider's** warehouse, using a server block from upstream's ODCS. A failure means upstream drifted from the contract we trusted; the consequence is that *our* output may break too. Treat input-port failures as an upstream incident, not a local bug.
 
 ## When to use this vs. other skills
 
@@ -23,7 +28,7 @@ Before running Step 0, print this plan to the user verbatim:
 
 > Running **datacontract-test**. I'll:
 > 1. Pre-checks: confirm the `datacontract` CLI is on PATH and the server credentials are available.
-> 2. Pick which contract(s) to test — defaults to all `datacontracts/*.odcs.yaml`.
+> 2. Pick which contract(s) to test — defaults to all `models/output_ports/**/*.odcs.yaml` and `models/input_ports/*.odcs.yaml`.
 > 3. Pick the server (defaults to `production` if the contract has one).
 > 4. Run `datacontract test` per contract and capture the result.
 > 5. Report pass/fail with per-rule detail; flag missing credentials separately from real failures.
@@ -33,14 +38,15 @@ Then proceed.
 ### Step 0 — Pre-checks
 
 - Confirm `datacontract --version` is on PATH. If not, stop and tell the user to install it (e.g. `uv tool install 'datacontract-cli[all]'`).
-- Confirm `datacontracts/` exists and contains at least one `*.odcs.yaml`. If not, stop and tell the user there's nothing to test.
+- Confirm at least one `*.odcs.yaml` exists under `models/output_ports/**/` or `models/input_ports/`. If not, stop and tell the user there's nothing to test.
 - For each contract that will run, inspect its `servers` block and list the env vars the chosen server type needs (e.g. `DATACONTRACT_SNOWFLAKE_USERNAME` / `..._PASSWORD`, `DATACONTRACT_DATABRICKS_TOKEN`, `DATACONTRACT_BIGQUERY_ACCOUNT_INFO_JSON`). If any are unset, surface the list to the user and ask whether to continue (the CLI will fail-fast on that server) or stop. Do not try to source credentials yourself.
 
 ### Step 1 — Select contracts
 
-- If the user named a specific contract file or data product id, resolve to one file under `datacontracts/`.
-- If they didn't, default to **all** `datacontracts/*.odcs.yaml` and list them so the user can narrow down before running.
-- Remember the resolved list as `CONTRACTS`.
+- If the user named a specific contract file or data product id, resolve it to one file. Search both `models/output_ports/**/*.odcs.yaml` and `models/input_ports/*.odcs.yaml`.
+- If the user said "output contracts" / "input contracts" / "upstream drift", scope to one of those globs.
+- If they didn't, default to **all** ODCS files under both globs. List them, grouped by **Output ports** and **Input ports** so the user sees the two roles, then ask before running.
+- Remember the resolved list as `CONTRACTS`. For each entry, also remember its role (`output` or `input`) — Step 4 surfaces failures differently.
 
 ### Step 2 — Select the server
 
@@ -55,8 +61,10 @@ For each contract in `CONTRACTS`:
 For each contract:
 
 ```
-datacontract test datacontracts/<file>.odcs.yaml --server <server> --logs
+datacontract test <path-to-contract>.odcs.yaml --server <server> --logs
 ```
+
+Where `<path-to-contract>` is the file resolved in Step 1 — typically `models/output_ports/v<N>/<file>.odcs.yaml` for output contracts, or `models/input_ports/<file>.odcs.yaml` for input contracts. The CLI does not care which directory; the role only matters for how Step 4 reports the result.
 
 - `--logs` ensures per-rule failure detail is in stdout — without it the CLI only prints a summary.
 - If the user asks for a persisted report (e.g. to attach to a PR), add `--output ./test-results/<contract>.xml --output-format junit`.
@@ -69,18 +77,18 @@ Run sequentially, not in parallel — the warehouse is the bottleneck and parall
 
 End with this two-part recap. Use the shared `Status` enum (`created`, `updated`, `already present`, `deferred`, `skipped`); for this skill the relevant statuses are `passed`, `failed`, and `skipped` (missing creds).
 
-**Part 1 — outcome table.** One row per contract tested.
+**Part 1 — outcome table.** One row per contract tested. Group the rows: output-port contracts first, then input-port contracts under a sub-header (so the reader sees the two roles at a glance).
 
-| Contract | Server | Result | Failures | Details |
-|---|---|---|---|---|
-| `<contract-file>` | `<server>` | `passed` / `failed` / `skipped` | count or `—` | one line per failing rule (field + rule), or "missing env var: …" if skipped |
+| Contract | Role | Server | Result | Failures | Details |
+|---|---|---|---|---|---|
+| `<contract-file>` | `output` / `input` | `<server>` | `passed` / `failed` / `skipped` | count or `—` | one line per failing rule (field + rule), or "missing env var: …" if skipped |
 
-**Part 2 — next steps.** Bullet list, include only what applies:
+**Part 2 — next steps.** Bullet list, include only what applies. Treat output vs. input failures differently:
 
-- For each failed rule, surface the field and the violated check (e.g. `orders.order_id: not_null violated for 17 rows`). If the user wants a follow-up SQL to find the offending rows, suggest the shape but don't run it.
+- **Output-port failures**: surface the field and the violated check (e.g. `orders.order_id: not_null violated for 17 rows`). The fix is in this project — either the dbt model is wrong, the contract is wrong, or the data is wrong. If the user wants a follow-up SQL to find the offending rows, suggest the shape but don't run it. If failures look like they came from a contract edit (rules tightening), point at `datacontract-edit` to classify breaking-vs-additive.
+- **Input-port failures**: this is upstream drift. Name the provider data product and output port (from the contract id and file name). The fix is *not* in this project — the user should contact the upstream owner, and in the meantime expect downstream output-port failures. Suggest re-running `dataproduct-implement` once upstream republishes a corrected contract, so the cached snapshot under `models/input_ports/` refreshes.
 - For each `skipped` row, the exact env vars the user needs to set, and where to get them (usually the warehouse admin or `entropy-data connection get`).
-- If failures look like they came from a contract edit (rules tightening), point at `datacontract-edit` to classify breaking-vs-additive.
-- If failures look like a data quality issue (rules unchanged, data drifted), suggest investigating upstream — this skill does not auto-fix data.
+- If failures look like a data quality issue (rules unchanged, data drifted), suggest investigating the upstream of the failing model — this skill does not auto-fix data.
 
 If everything passed, write a single line: `All <N> contracts pass against <server>.`
 

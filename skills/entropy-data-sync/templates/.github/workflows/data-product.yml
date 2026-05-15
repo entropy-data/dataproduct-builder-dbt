@@ -62,13 +62,13 @@ jobs:
           ENTROPY_DATA_API_KEY: ${{ secrets.ENTROPY_DATA_API_KEY }}
 
       - name: Publish data contract
-        run: entropy-data datacontracts put {{CONTRACT_ID}} --file datacontracts/{{CONTRACT_FILE}}
+        run: entropy-data datacontracts put {{CONTRACT_ID}} --file models/output_ports/v1/{{CONTRACT_FILE}}
         env:
           ENTROPY_DATA_API_KEY: ${{ secrets.ENTROPY_DATA_API_KEY }}
 
       - name: Data contract test
         run: |
-          datacontract test datacontracts/{{CONTRACT_FILE}} \
+          datacontract test models/output_ports/v1/{{CONTRACT_FILE}} \
             --server production \
             --publish $API/test-results
         env:

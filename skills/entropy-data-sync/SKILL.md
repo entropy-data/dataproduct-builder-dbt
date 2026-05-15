@@ -14,11 +14,12 @@ A dbt project is well-integrated with Entropy Data when it has all of:
 | # | Artifact | Path | Purpose |
 |---|---|---|---|
 | 1 | Open Data Product Specification | `<data-product-id>.odps.yaml` at repo root | Declares the data product, team, output ports |
-| 2 | Open Data Contract Standard | `datacontracts/<name>.odcs.yaml` (one per output port) | Schema + server config the contract test runs against |
-| 3 | OpenLineage transport | `openlineage.yml` at repo root | Makes `dbt-ol run` send lineage to `api.entropy-data.com` |
-| 4 | Model layout | `models/{input_ports,staging,intermediate,output_ports/v1}/` | Convention that mirrors the data product's lifecycle |
-| 5 | Publish workflow | `.github/workflows/data-product.yml` | CI: dbt run/test → publish ODPS + ODCS → run contract test |
-| 6 | Git connections | One per ODPS + one per ODCS file, registered via `entropy-data dataproducts gitconnection put` and `entropy-data datacontracts gitconnection put` | Lets Entropy Data link the published spec back to the YAML in the repo, and enables `pull` / `push` / `push-pr` from the CLI |
+| 2 | Output-port data contracts | `models/output_ports/v<N>/<contract-id>.odcs.yaml` (one per output port — what this data product **commits** to produce) | Schema + server config the contract test runs against; colocated with the SQL that implements it |
+| 3 | Input-port data contracts | `models/input_ports/<provider-output-port-id>.odcs.yaml` (one per active access agreement — what this data product **trusts** upstream to produce) | Cached snapshot of the upstream provider's ODCS; refreshed via `entropy-data datacontracts get`, never hand-edited |
+| 4 | OpenLineage transport | `openlineage.yml` at repo root | Makes `dbt-ol run` send lineage to `api.entropy-data.com` |
+| 5 | Model layout | `models/{input_ports,staging,intermediate,output_ports/v1}/` | Convention that mirrors the data product's lifecycle |
+| 6 | Publish workflow | `.github/workflows/data-product.yml` | CI: dbt run/test → publish ODPS + output ODCS → run contract test |
+| 7 | Git connections | One per ODPS + one per output-port ODCS, registered via `entropy-data dataproducts gitconnection put` and `entropy-data datacontracts gitconnection put` | Lets Entropy Data link the published spec back to the YAML in the repo, and enables `pull` / `push` / `push-pr` from the CLI. Input-port ODCS files are *not* registered — they belong to the upstream data product, which owns its own git connection |
 
 ## How to run this skill
 
@@ -54,10 +55,17 @@ Read `dbt_project.yml` and remember the `name:` value — call it `DBT_PROJECT_N
 
 ### Step 2 — Audit
 
-For each row in the table above, check whether the artifact is present. For row 6 (git connections), call:
+For each row in the table above, check whether the artifact is present. For row 7 (git connections), call:
 
 - `entropy-data dataproducts gitconnection get <DATA_PRODUCT_ID> -o json`
-- `entropy-data datacontracts gitconnection get <CONTRACT_ID> -o json` for each contract under `datacontracts/`
+- `entropy-data datacontracts gitconnection get <CONTRACT_ID> -o json` for each output-port contract under `models/output_ports/**/`
+
+For rows 2 and 3, glob the file system:
+
+- Output contracts: `models/output_ports/**/*.odcs.yaml`
+- Input contracts: `models/input_ports/*.odcs.yaml`
+
+Legacy projects may still have contracts at the old `datacontracts/` path. If `datacontracts/` exists and contains `*.odcs.yaml` files, flag those rows as **migration needed** and surface the move target (output contracts → `models/output_ports/v1/`; input contracts, if any, → `models/input_ports/`). Do not move them silently — Step 4 asks the user.
 
 If a `get` returns a 404 (or "not found"), mark that connection as missing. If it returns a connection whose `repository-url` / `repository-path` / `repository-branch` does not match the local repo, mark it as **drifted** and call it out separately — do not silently overwrite. If the underlying data product or contract doesn't exist on the platform yet (the workflow hasn't run for the first time), or if the working directory is not a git repository (`git rev-parse --is-inside-work-tree` errors or returns `false`), mark git connections as **deferred** with a one-line explanation.
 
@@ -68,7 +76,8 @@ Produce a short audit report like:
 ```
 Entropy Data integration audit for <DBT_PROJECT_NAME>:
   [✓] ODPS file
-  [✗] Data contract (datacontracts/ is missing)
+  [✗] Output-port contracts (no *.odcs.yaml under models/output_ports/)
+  [⏸] Input-port contracts (none — populated by dataproduct-implement from access agreements)
   [✓] openlineage.yml
   [✗] Model layout (no models/output_ports)
   [✗] GitHub Actions publish workflow
@@ -87,7 +96,8 @@ Before generating files, fill in these placeholders. Infer from the project wher
 | `DATA_PRODUCT_NAME` | Title-cased `DBT_PROJECT_NAME` | Human-friendly name |
 | `OUTPUT_PORT_NAME` | `DBT_PROJECT_NAME` | One output port per ODCS file |
 | `CONTRACT_ID` | `<DATA_PRODUCT_ID>-v1` | Stable id used by `entropy-data datacontracts put` |
-| `CONTRACT_FILE` | `<contract_id>.odcs.yaml` | File under `datacontracts/` |
+| `CONTRACT_FILE` | `<contract_id>.odcs.yaml` | File under `models/output_ports/v1/` |
+| `CONTRACT_PATH` | `models/output_ports/v1/<CONTRACT_FILE>` | Full repo-relative path; used by `--repository-path`, the CI workflow, and `datacontract test` |
 | `TABLE` | last segment of `DBT_PROJECT_NAME` | Output table name |
 | `PURPOSE` | — | Ask the user (one sentence) |
 | `TEAM_NAME` | — | If `<DATA_PRODUCT_ID>.odps.yaml` already exists with a `team.name`, use that. Otherwise, prefer a team `id` registered in Entropy Data — invoke the **entropy-data-teams** skill (in this same plugin) so the user can pick from the existing teams, and use the returned `id`. Fall back to a free-text answer only if `entropy-data-teams` cannot run (CLI unavailable / not authenticated) |
@@ -128,9 +138,17 @@ Surface the diff and ask before saving.
 The templates live at:
 
 - `templates/data-product.odps.yaml` → write to `<DATA_PRODUCT_ID>.odps.yaml`
-- `templates/datacontracts/contract.odcs.yaml` → write to `datacontracts/<CONTRACT_FILE>`
+- `templates/models/output_ports/v1/contract.odcs.yaml` → write to `<CONTRACT_PATH>` (i.e. `models/output_ports/v1/<CONTRACT_FILE>`)
 - `templates/openlineage.yml` → write to `openlineage.yml`
 - `templates/.github/workflows/data-product.yml` → write to `.github/workflows/data-product.yml`
+
+If the audit reported a legacy `datacontracts/` directory, ask the user before moving its contents. The default migration is:
+
+- `datacontracts/<contract>.odcs.yaml` → `models/output_ports/v1/<contract>.odcs.yaml` (if it matches an output port). If multiple output port versions exist, ask which one.
+- Update the git connection's `--repository-path` for each moved contract (Step 4b).
+- Delete the now-empty `datacontracts/` directory only after the user confirms the move.
+
+This skill does not create input-port ODCS files. They appear only when `dataproduct-implement` resolves an access agreement and writes the cached upstream contract to `models/input_ports/`. If the audit found stale input-port ODCS files (no matching `.source.yaml`), surface them as orphans and let the user decide whether to delete them.
 
 For the model layout, create the directories `models/input_ports/`, `models/staging/`, `models/intermediate/`, `models/output_ports/v1/` if absent, plus `_models.yml` placeholders so dbt does not warn about empty directories. Do not move existing models — only add the empty subfolders the user is missing, and note it in the report.
 
@@ -164,21 +182,23 @@ entropy-data dataproducts gitconnection put <DATA_PRODUCT_ID> \
   [--git-credential-external-id <GIT_CREDENTIAL_EXTERNAL_ID>]
 ```
 
-For each ODCS file under `datacontracts/`:
+For each output-port ODCS file (`models/output_ports/**/*.odcs.yaml`):
 
 ```
 entropy-data datacontracts gitconnection put <CONTRACT_ID> \
   --repository-url <GIT_REPOSITORY_URL> \
-  --repository-path datacontracts/<CONTRACT_FILE> \
+  --repository-path <CONTRACT_PATH> \
   --repository-branch <GIT_REPOSITORY_BRANCH> \
   --git-connection-type <GIT_CONNECTION_TYPE> \
   [--host <GIT_HOST>] \
   [--git-credential-external-id <GIT_CREDENTIAL_EXTERNAL_ID>]
 ```
 
+Do **not** register git connections for input-port ODCS files. They are cached copies of upstream contracts; the upstream data product owns the canonical record.
+
 Notes:
 
-- `--repository-path` is **relative to the repo root**, not the working directory. The ODPS path is just `<DATA_PRODUCT_ID>.odps.yaml`; contract paths are `datacontracts/<CONTRACT_FILE>`.
+- `--repository-path` is **relative to the repo root**, not the working directory. The ODPS path is just `<DATA_PRODUCT_ID>.odps.yaml`; output-port contract paths look like `models/output_ports/v<N>/<CONTRACT_FILE>`.
 - Omit `--host` for SaaS providers (github.com, gitlab.com, bitbucket.org, dev.azure.com); set it only for self-hosted instances.
 - These commands fail if the underlying data product / contract does not exist on the platform yet. If you skipped earlier because of "deferred," surface the manual command in Step 5 so the user can run it after the first workflow run. Do not retry-loop.
 - If the audit reported drift (existing connection with different URL/branch/path), confirm with the user before overwriting — `put` is upsert.
@@ -192,7 +212,8 @@ Always end with this exact two-part format so the user gets a consistent recap.
 | Artifact | Status | Details |
 |---|---|---|
 | ODPS file | … | … |
-| Data contract | … | … |
+| Output-port contracts | … | `<N>` file(s) at `models/output_ports/v<N>/<CONTRACT_FILE>` |
+| Input-port contracts | … | `<N>` file(s) at `models/input_ports/<provider-output-port-id>.odcs.yaml` (or "—" if no access agreements yet) |
 | OpenLineage transport | … | … |
 | Model layout | … | … |
 | Publish workflow | … | … |
@@ -210,7 +231,7 @@ Always end with this exact two-part format so the user gets a consistent recap.
 
 - For each `deferred` git connection, the exact `entropy-data dataproducts gitconnection put …` or `entropy-data datacontracts gitconnection put …` command to run after the first CI publish.
 - "Set GitHub repository secrets: `ENTROPY_DATA_API_KEY`, plus platform creds (`DBT_DATABRICKS_HOST`, `DBT_DATABRICKS_HTTP_PATH`, `DBT_DATABRICKS_TOKEN` for Databricks; equivalents for other platforms)."
-- "Fill in the data contract schema in `datacontracts/<CONTRACT_FILE>` — the template only seeds `id` and `updated_at`."
+- "Fill in the data contract schema in `<CONTRACT_PATH>` — the template only seeds `id` and `updated_at`."
 - "Run `dbt-ol run` locally once to verify lineage flows to Entropy Data (requires `OPENLINEAGE__TRANSPORT__AUTH__APIKEY`)."
 
 If there is nothing in Part 2, write a single line: `No further action required.`

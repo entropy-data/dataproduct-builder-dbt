@@ -29,7 +29,7 @@ Then proceed.
 ### Step 0 — Pre-checks
 
 - Confirm `dbt_project.yml` exists at the working directory root.
-- Confirm there is at least one ODCS file under `datacontracts/`.
+- Confirm there is at least one output-port ODCS file under `models/output_ports/`.
 - Confirm `entropy-data` CLI is on PATH (`entropy-data --version`). If not, surface the install line from the README and stop.
 - Confirm a non-production dbt profile/target exists (`test`, `dev`, or similar). Inspect `profiles.yml` if accessible; otherwise ask. **Never use a `prod` target in this skill.**
 
@@ -38,7 +38,7 @@ Then proceed.
 If multiple output ports exist, ask which one. For each candidate, you need:
 
 - `OUTPUT_PORT_ID` (from `<id>.odps.yaml`)
-- the matching `datacontracts/<file>.odcs.yaml`
+- the matching `models/output_ports/v<N>/<file>.odcs.yaml`
 - the table name and server config the contract points at
 
 ### Step 2 — Build the scrub plan

@@ -1,6 +1,6 @@
 ---
 name: dataproduct-implement
-description: Given an Entropy Data data product URL or id, fetch its data contracts, translate the contract schema into dbt models under models/output_ports/v1/, and ensure the project has the publishing layer (ODPS, ODCS, OpenLineage, GitHub Actions). Trigger when the user asks to "implement the data product <url>", "build the dbt pipeline for this data product", or "scaffold dbt models from a data contract".
+description: Given an Entropy Data data product URL or id, fetch its data contracts (output port ODCS files written next to the SQL under models/output_ports/v<N>/, input port ODCS files cached next to their dbt source under models/input_ports/), translate the schema into dbt models, and ensure the project has the publishing layer (ODPS, OpenLineage, GitHub Actions). Trigger when the user asks to "implement the data product <url>", "build the dbt pipeline for this data product", or "scaffold dbt models from a data contract".
 ---
 
 # Implement a data product from its data contract
@@ -24,9 +24,9 @@ Before running Step 0, print this plan to the user verbatim:
 > Running **dataproduct-implement**. I'll:
 > 1. Pre-checks: confirm this is a dbt project, the `dbt` CLI is installed, and the `entropy-data` CLI is connected.
 > 2. Resolve the data product by id or URL (`entropy-data dataproducts get`).
-> 3. Fetch each selected output port's data contract (`entropy-data datacontracts get`) and save it under `datacontracts/`.
+> 3. Fetch each selected output port's data contract (`entropy-data datacontracts get`) and save it next to the SQL it governs, under `models/output_ports/v<N>/`.
 > 4. Translate the ODCS schema into dbt models under `models/output_ports/v1/` (column list, types, tests).
-> 5. Implement the dbt model bodies: declare input ports as dbt sources and write the `select` from input ports to output columns (with confirmation; complex joins left as TODOs).
+> 5. Implement the dbt model bodies: declare input ports as dbt sources, cache each upstream contract under `models/input_ports/<provider-op-id>.odcs.yaml` as a trust snapshot, and write the `select` from input ports to output columns (with confirmation; complex joins left as TODOs).
 > 6. Stamp the data product on Entropy Data with the `dataProductBuilder` customProperty so the platform knows it is managed by this builder.
 > 7. Hand off to `entropy-data-sync` to add any missing publishing artifacts (ODPS, OpenLineage, GitHub Actions).
 > 8. Summarize what was generated and the open TODOs.
@@ -57,7 +57,7 @@ If the data product does not exist in Entropy Data, ask the user if they want to
 
 ### Step 2 — Fetch the data contracts
 
-For each selected output port, run `entropy-data datacontracts get <contract-id> -o yaml` with the contract id from the data product. Remember the response as `CONTRACT`, and write it to `datacontracts/<contract-id>.odcs.yaml`. If the file already exists and differs from the fetched contract, surface the diff and ask before overwriting.
+For each selected output port, run `entropy-data datacontracts get <contract-id> -o yaml` with the contract id from the data product. Remember the response as `CONTRACT`, and write it to `models/output_ports/v<N>/<contract-id>.odcs.yaml` (the version directory matches the output port's version — default `v1` if the data product does not declare one). If the file already exists and differs from the fetched contract, surface the diff and ask before overwriting.
 
 The fields you need from `CONTRACT`:
 
@@ -74,8 +74,10 @@ For each contract:
 3. Generate `models/output_ports/v1/<table>.sql` — a stub `select` that lists the contract columns explicitly with `cast(... as <warehouse-type>) as <column>`. **Leave the `from` clause as a TODO** with a comment listing the candidate input ports from the previous step; do not invent business logic. Prepend a one-line header comment so a reader of the file knows which contract governs the schema:
 
    ```sql
-   -- Governed by datacontracts/<contract-file>.odcs.yaml (ODCS id: <CONTRACT_ID>)
+   -- Governed by <contract-file>.odcs.yaml (ODCS id: <CONTRACT_ID>)
    ```
+
+   The contract file sits in the same directory as the SQL, so the comment names the file without a path prefix.
 4. Append the column list to `models/output_ports/v1/_models.yml` under `models:` — name, description (from contract), and tests derived from the contract: `not_null` for `required: true`, `unique` for `unique: true`, `accepted_values` if the contract defines an enum. Add a `meta.data_contract` block on the model that points back to the contract — this is the machine-readable counterpart to the SQL header comment, so `dbt list --select config.meta.data_contract.id:<id>`, dbt-docs, and lineage tooling can discover the link:
 
    ```yaml
@@ -85,7 +87,7 @@ For each contract:
        meta:
          data_contract:
            id: <CONTRACT_ID>
-           file: datacontracts/<contract-file>.odcs.yaml
+           file: models/output_ports/v<N>/<contract-file>.odcs.yaml
        columns:
          - ...
    ```
@@ -108,30 +110,35 @@ Ask the user: "Want me to wire the output-port models to the input ports, or lea
 
 For each output port table:
 
-1. **Declare each candidate input port as a dbt source — one file per agreement.** For every agreement from Step 3.2, fetch the provider data product (`entropy-data dataproducts get <provider-data-product-id> -o yaml`) to resolve the output port's `server` (catalog/schema/table) and linked contract id, then fetch the contract (`entropy-data datacontracts get <contract-id> -o yaml`) for columns. Write one file per agreement at `models/input_ports/<provider-output-port-id>.source.yaml`:
+1. **Declare each candidate input port as a dbt source — one file per agreement, plus a trust-snapshot of the upstream contract.** For every agreement from Step 3.2:
 
-   ```yaml
-   version: 2
-   sources:
-     - name: <provider-data-product-id>_<provider-output-port-id>
-       database: <output port server.catalog>
-       schema: <output port server.schema>
-       meta:
-         data_contract:
-           id: <provider-contract-id>
-           # The provider's contract is not stored in this repo; reference it by id only.
-       tables:
-         - name: <table>   # from the contract's `models:` key — one entry per table in the contract
-           description: <from contract>
-           columns:
-             - name: <col>
-               description: <from contract>
-               data_type: <warehouse type from the type map in Step 3>
-   ```
+   1. Fetch the provider data product (`entropy-data dataproducts get <provider-data-product-id> -o yaml`) to resolve the output port's `server` (catalog/schema/table) and linked contract id.
+   2. Fetch the contract (`entropy-data datacontracts get <provider-contract-id> -o yaml`) for columns.
+   3. Write the fetched contract to `models/input_ports/<provider-output-port-id>.odcs.yaml`. This is a **cached snapshot of what we trust upstream to produce** — it lets `git log` show when upstream's schema or quality rules changed under us. Do not hand-edit this file; the next run of this skill will refresh it from the platform. If the file already exists and the upstream contract has changed, surface the diff (so the user sees the drift) and ask before overwriting.
+   4. Write the dbt source file to `models/input_ports/<provider-output-port-id>.source.yaml`:
 
-   The `sources[].name` combines `<provider-data-product-id>_<provider-output-port-id>` so it stays unique across agreements (two agreements with the same provider data product but different output ports do not collide). Each `tables:` entry comes from the provider contract's `models:` block — a contract can declare multiple tables, and each one becomes a row here. The `meta.data_contract` reference goes on the source element (one contract per output port), not on each table.
+      ```yaml
+      version: 2
+      sources:
+        - name: <provider-data-product-id>_<provider-output-port-id>
+          database: <output port server.catalog>
+          schema: <output port server.schema>
+          meta:
+            data_contract:
+              id: <provider-contract-id>
+              file: models/input_ports/<provider-output-port-id>.odcs.yaml
+          tables:
+            - name: <table>   # from the contract's `models:` key — one entry per table in the contract
+              description: <from contract>
+              columns:
+                - name: <col>
+                  description: <from contract>
+                  data_type: <warehouse type from the type map in Step 3>
+      ```
 
-   One file per agreement. Do not merge multiple agreements into a single file — each access grant should be independently visible in `git log` and easy to remove when revoked. If a file already exists for the same `<provider-output-port-id>`, surface the diff and ask before overwriting.
+   The `sources[].name` combines `<provider-data-product-id>_<provider-output-port-id>` so it stays unique across agreements (two agreements with the same provider data product but different output ports do not collide). Each `tables:` entry comes from the provider contract's `models:` block — a contract can declare multiple tables, and each one becomes a row here. The `meta.data_contract` reference goes on the source element (one contract per output port), not on each table, and points at the local snapshot written in sub-step 3.
+
+   One pair of files (`*.odcs.yaml` + `*.source.yaml`) per agreement. Do not merge multiple agreements into a single file — each access grant should be independently visible in `git log` and easy to remove when revoked. If either file already exists for the same `<provider-output-port-id>`, surface the diff and ask before overwriting.
 2. **Match input columns to output columns.** Build a column-by-column map: for each output column in the contract, find the input column with the same name (or an obvious synonym, e.g. `customer_id` ↔ `account_id` only if the input contract's `description` makes it explicit). Don't guess — if no clear match, leave that column as a `null as <col>` placeholder with a `-- TODO: derive from ...` comment.
 3. **Write the SQL body.**
    - **Single input source, columns match 1:1** → replace the TODO `from` with `from {{ source('<provider-data-product-id>_<provider-output-port-id>', '<table>') }}` (the first arg matches `sources[].name`, the second matches `tables[].name` — i.e. the contract's model key — from the source file written in step 4.1) and project each output column with `cast(<input_col> as <warehouse_type>) as <output_col>`.
@@ -173,7 +180,8 @@ End with this two-part recap. Use the same `Status` enum the other skills use: `
 |---|---|---|
 | Data product | already present | `<DATA_PRODUCT_ID>` — fetched from platform |
 | `dataProductBuilder` customProperty | … | "added — pushed to Entropy Data" / "already present" |
-| Data contract `<CONTRACT_ID>` | … | written to `datacontracts/<contract_id>.odcs.yaml` |
+| Output-port data contract `<CONTRACT_ID>` | … | written to `models/output_ports/v<N>/<contract_id>.odcs.yaml` |
+| Input-port data contracts | … | `models/input_ports/<provider-output-port-id>.odcs.yaml` — `<N>` files written / refreshed (trust snapshots, one per active access agreement) / skipped |
 | Input port sources | … | `models/input_ports/<provider-output-port-id>.source.yaml` — `<N>` files written (one per active access agreement) / skipped |
 | Model `<table>.sql` | … | `models/output_ports/v1/<table>.sql` — "wired to `<source>`" / "join TODO" / "skipped per user" |
 | `_models.yml` entry for `<table>` | … | tests derived from the contract |
@@ -184,7 +192,7 @@ End with this two-part recap. Use the same `Status` enum the other skills use: `
 
 - For each model with a join or derived-column TODO, list the inputs and the missing logic — one bullet per `<table>.sql`.
 - Run `dbt run` and `dbt test` locally to verify the generated models compile and pass the contract-derived tests.
-- Run the contract test: `datacontract test datacontracts/<file>.odcs.yaml` for each contract.
+- Run the contract test on the output ports against your warehouse: `datacontract test models/output_ports/v<N>/<file>.odcs.yaml` for each contract.
 - Any deferred items from the sync skill's report.
 
 If there is nothing in Part 2, write a single line: `No further action required.`
